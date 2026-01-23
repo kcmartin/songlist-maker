@@ -1,0 +1,14 @@
+{
+  "name": "songlist-maker-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "better-sqlite3": "^11.5.0",
+    "cors": "^2.8.5"
+  }
+}
