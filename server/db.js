@@ -26,6 +26,7 @@ db.exec(`
     type TEXT NOT NULL CHECK(type IN ('gig', 'practice')),
     date TEXT,
     notes TEXT,
+    share_token TEXT UNIQUE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -41,5 +42,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_songlist_items_songlist ON songlist_items(songlist_id);
   CREATE INDEX IF NOT EXISTS idx_songlist_items_song ON songlist_items(song_id);
 `);
+
+// Migration: Add share_token column if it doesn't exist
+const columns = db.prepare("PRAGMA table_info(songlists)").all();
+const hasShareToken = columns.some(col => col.name === 'share_token');
+if (!hasShareToken) {
+  db.exec(`
+    ALTER TABLE songlists ADD COLUMN share_token TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_share_token ON songlists(share_token);
+  `);
+}
 
 export default db;

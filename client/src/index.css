@@ -33,3 +33,19 @@
     @apply bg-white rounded-xl shadow-sm border border-gray-200 dark:bg-gray-800 dark:border-gray-700;
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}

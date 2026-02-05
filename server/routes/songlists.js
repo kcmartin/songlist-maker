@@ -1,7 +1,31 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import db from '../db.js';
 
 const router = Router();
+
+// Get songlist by share token (public) - must be before /:id to avoid matching
+router.get('/share/:token', (req, res) => {
+  try {
+    const songlist = db.prepare('SELECT * FROM songlists WHERE share_token = ?').get(req.params.token);
+
+    if (!songlist) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+
+    const songs = db.prepare(`
+      SELECT s.*, si.position
+      FROM songs s
+      JOIN songlist_items si ON s.id = si.song_id
+      WHERE si.songlist_id = ?
+      ORDER BY si.position
+    `).all(songlist.id);
+
+    res.json({ ...songlist, songs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Get all songlists with song counts
 router.get('/', (req, res) => {
@@ -154,6 +178,44 @@ router.put('/:id/songs', (req, res) => {
     `).all(songlistId);
 
     res.json({ ...songlist, songs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Generate share token for songlist
+router.post('/:id/share', (req, res) => {
+  try {
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+
+    // If already has a token, return it
+    if (songlist.share_token) {
+      return res.json({ share_token: songlist.share_token });
+    }
+
+    // Generate new token
+    const token = crypto.randomBytes(16).toString('hex');
+    db.prepare('UPDATE songlists SET share_token = ? WHERE id = ?').run(token, req.params.id);
+
+    res.json({ share_token: token });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove share token from songlist
+router.delete('/:id/share', (req, res) => {
+  try {
+    const result = db.prepare('UPDATE songlists SET share_token = NULL WHERE id = ?').run(req.params.id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
