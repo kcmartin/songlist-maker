@@ -22,8 +22,11 @@ import {
   updateSonglist,
   updateSonglistSongs,
   deleteSonglist,
+  generateShareLink,
+  removeShareLink,
 } from '../api'
 import SonglistForm from '../components/SonglistForm'
+import PrintModal from '../components/PrintModal'
 
 function SortableSong({ song, onRemove }) {
   const {
@@ -100,6 +103,10 @@ export default function SonglistDetail() {
   const [loading, setLoading] = useState(true)
   const [showEditForm, setShowEditForm] = useState(false)
   const [showAddSong, setShowAddSong] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [shareLink, setShareLink] = useState(null)
+  const [copyFeedback, setCopyFeedback] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -192,6 +199,43 @@ export default function SonglistDetail() {
     }
   }
 
+  const handleShare = async () => {
+    try {
+      // Check if songlist already has a share token
+      if (songlist.share_token) {
+        setShareLink(`${window.location.origin}/share/${songlist.share_token}`)
+      } else {
+        const result = await generateShareLink(id)
+        setShareLink(`${window.location.origin}/share/${result.share_token}`)
+        setSonglist((prev) => ({ ...prev, share_token: result.share_token }))
+      }
+      setShowShareModal(true)
+    } catch (err) {
+      alert('Failed to generate share link')
+    }
+  }
+
+  const handleRemoveShare = async () => {
+    try {
+      await removeShareLink(id)
+      setSonglist((prev) => ({ ...prev, share_token: null }))
+      setShareLink(null)
+      setShowShareModal(false)
+    } catch (err) {
+      alert('Failed to remove share link')
+    }
+  }
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareLink)
+      setCopyFeedback(true)
+      setTimeout(() => setCopyFeedback(false), 2000)
+    } catch (err) {
+      alert('Failed to copy link')
+    }
+  }
+
   const availableSongs = allSongs.filter(
     (s) => !songlist?.songs?.some((ls) => ls.id === s.id)
   )
@@ -256,7 +300,19 @@ export default function SonglistDetail() {
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleShare}
+              className="btn btn-secondary"
+            >
+              Share
+            </button>
+            <button
+              onClick={() => setShowPrintModal(true)}
+              className="btn btn-secondary"
+            >
+              Print / Export
+            </button>
             <button
               onClick={() => setShowEditForm(true)}
               className="btn btn-secondary"
@@ -367,6 +423,52 @@ export default function SonglistDetail() {
             </button>
           </div>
         </div>
+      )}
+
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="card p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Share Songlist</h2>
+
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              Anyone with this link can view this songlist (read-only).
+            </p>
+
+            <div className="flex gap-2 mb-4">
+              <input
+                type="text"
+                value={shareLink}
+                readOnly
+                className="input flex-1 text-sm"
+              />
+              <button
+                onClick={handleCopyLink}
+                className={`btn ${copyFeedback ? 'bg-green-600 text-white' : 'btn-primary'}`}
+              >
+                {copyFeedback ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleRemoveShare}
+                className="btn btn-danger flex-1"
+              >
+                Remove Link
+              </button>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="btn btn-secondary flex-1"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPrintModal && (
+        <PrintModal songlist={songlist} onClose={() => setShowPrintModal(false)} />
       )}
     </div>
   )

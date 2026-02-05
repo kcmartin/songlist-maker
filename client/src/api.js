@@ -85,3 +85,26 @@ export async function updateSonglistSongs(id, songIds) {
   if (!res.ok) throw new Error('Failed to update songlist songs');
   return res.json();
 }
+
+// Share API
+export async function generateShareLink(id) {
+  const res = await fetch(`${API_BASE}/songlists/${id}/share`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to generate share link');
+  return res.json();
+}
+
+export async function removeShareLink(id) {
+  const res = await fetch(`${API_BASE}/songlists/${id}/share`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove share link');
+  return res.json();
+}
+
+export async function getSharedSonglist(token) {
+  const res = await fetch(`${API_BASE}/songlists/share/${token}`);
+  if (!res.ok) throw new Error('Songlist not found');
+  return res.json();
+}
