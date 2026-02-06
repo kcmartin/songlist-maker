@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import songsRouter from './routes/songs.js';
 import songlistsRouter from './routes/songlists.js';
+import tagsRouter from './routes/tags.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -15,6 +16,7 @@ app.use(express.json());
 // API routes
 app.use('/api/songs', songsRouter);
 app.use('/api/songlists', songlistsRouter);
+app.use('/api/tags', tagsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

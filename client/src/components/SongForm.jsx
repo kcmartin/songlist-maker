@@ -7,6 +7,7 @@ export default function SongForm({ song, onSubmit, onCancel }) {
     notes: '',
     youtube_url: '',
     recording_url: '',
+    lyrics_url: '',
   })
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function SongForm({ song, onSubmit, onCancel }) {
         notes: song.notes || '',
         youtube_url: song.youtube_url || '',
         recording_url: song.recording_url || '',
+        lyrics_url: song.lyrics_url || '',
       })
     }
   }, [song])
@@ -104,6 +106,20 @@ export default function SongForm({ song, onSubmit, onCancel }) {
               onChange={handleChange}
               className="input"
               placeholder="Link to band recording..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Lyrics URL
+            </label>
+            <input
+              type="url"
+              name="lyrics_url"
+              value={formData.lyrics_url}
+              onChange={handleChange}
+              className="input"
+              placeholder="Link to lyrics..."
             />
           </div>
 

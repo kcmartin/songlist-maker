@@ -108,3 +108,28 @@ export async function getSharedSonglist(token) {
   if (!res.ok) throw new Error('Songlist not found');
   return res.json();
 }
+
+// Tags API
+export async function getTags() {
+  const res = await fetch(`${API_BASE}/tags`);
+  if (!res.ok) throw new Error('Failed to fetch tags');
+  return res.json();
+}
+
+export async function addTagToSong(songId, tagId) {
+  const res = await fetch(`${API_BASE}/songs/${songId}/tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tagId }),
+  });
+  if (!res.ok) throw new Error('Failed to add tag');
+  return res.json();
+}
+
+export async function removeTagFromSong(songId, tagId) {
+  const res = await fetch(`${API_BASE}/songs/${songId}/tags/${tagId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove tag');
+  return res.json();
+}
