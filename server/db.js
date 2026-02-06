@@ -60,6 +60,12 @@ if (!hasLyricsUrl) {
   db.exec(`ALTER TABLE songs ADD COLUMN lyrics_url TEXT;`);
 }
 
+// Migration: Add duration column if it doesn't exist
+const hasDuration = songColumns.some(col => col.name === 'duration');
+if (!hasDuration) {
+  db.exec(`ALTER TABLE songs ADD COLUMN duration INTEGER;`);
+}
+
 // Create tags tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS tags (

@@ -28,7 +28,23 @@ import {
 import SonglistForm from '../components/SonglistForm'
 import PrintModal from '../components/PrintModal'
 
-function SortableSong({ song, onRemove }) {
+const formatDuration = (seconds) => {
+  if (!seconds) return null
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+const formatTotalTime = (seconds) => {
+  if (!seconds) return '0:00'
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m ${s}s`
+}
+
+function SortableSong({ song, onRemove, display }) {
   const {
     attributes,
     listeners,
@@ -62,13 +78,23 @@ function SortableSong({ song, onRemove }) {
 
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">{song.title}</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-          {song.artist}
-        </p>
+        {display.artist && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+            {song.artist}
+          </p>
+        )}
+        {display.notes && song.notes && (
+          <p className="text-sm text-gray-400 dark:text-gray-500 truncate italic">
+            {song.notes}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
-        {song.youtube_url && (
+        {display.duration && song.duration && (
+          <span className="text-sm text-gray-400">{formatDuration(song.duration)}</span>
+        )}
+        {display.links && song.youtube_url && (
           <a
             href={song.youtube_url}
             target="_blank"
@@ -107,6 +133,26 @@ export default function SonglistDetail() {
   const [showPrintModal, setShowPrintModal] = useState(false)
   const [shareLink, setShareLink] = useState(null)
   const [copyFeedback, setCopyFeedback] = useState(false)
+  const [display, setDisplay] = useState(() => {
+    const saved = localStorage.getItem('songlist-display')
+    return saved ? JSON.parse(saved) : {
+      numbers: true,
+      artist: true,
+      notes: false,
+      duration: true,
+      links: false,
+    }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('songlist-display', JSON.stringify(display))
+  }, [display])
+
+  const toggleDisplay = (key) => {
+    setDisplay((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const totalDuration = songlist?.songs?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -329,18 +375,48 @@ export default function SonglistDetail() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold">
-          Songs ({songlist.songs?.length || 0})
-        </h2>
-        {availableSongs.length > 0 && (
-          <button
-            onClick={() => setShowAddSong(true)}
-            className="btn btn-primary"
-          >
-            + Add Song
-          </button>
-        )}
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">
+              Songs ({songlist.songs?.length || 0})
+            </h2>
+            {totalDuration > 0 && (
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {formatTotalTime(totalDuration)}
+              </span>
+            )}
+          </div>
+          {availableSongs.length > 0 && (
+            <button
+              onClick={() => setShowAddSong(true)}
+              className="btn btn-primary"
+            >
+              + Add Song
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'numbers', label: '#' },
+            { key: 'artist', label: 'Artist' },
+            { key: 'notes', label: 'Notes' },
+            { key: 'duration', label: 'Time' },
+            { key: 'links', label: 'Links' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => toggleDisplay(key)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                display[key]
+                  ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
+                  : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {songlist.songs?.length === 0 ? (
@@ -372,11 +448,13 @@ export default function SonglistDetail() {
             <div className="space-y-2">
               {songlist.songs.map((song, index) => (
                 <div key={song.id} className="flex items-center gap-3">
-                  <span className="w-6 text-center text-gray-400 font-medium">
-                    {index + 1}
-                  </span>
+                  {display.numbers && (
+                    <span className="w-6 text-center text-gray-400 font-medium">
+                      {index + 1}
+                    </span>
+                  )}
                   <div className="flex-1">
-                    <SortableSong song={song} onRemove={handleRemoveSong} />
+                    <SortableSong song={song} onRemove={handleRemoveSong} display={display} />
                   </div>
                 </div>
               ))}
