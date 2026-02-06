@@ -15,7 +15,7 @@ export default function PrintModal({ songlist, onClose }) {
   const generateTextContent = () => {
     let content = `${songlist.name}\n`
     if (songlist.date) {
-      content += `${new Date(songlist.date).toLocaleDateString()}\n`
+      content += `${new Date(songlist.date + 'T00:00:00').toLocaleDateString()}\n`
     }
     content += '\n'
 
@@ -141,7 +141,7 @@ export default function PrintModal({ songlist, onClose }) {
       </head>
       <body>
         <h1>${songlist.name}</h1>
-        ${songlist.date ? `<p class="date">${new Date(songlist.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>` : ''}
+        ${songlist.date ? `<p class="date">${new Date(songlist.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>` : ''}
         <ol class="song-list">
           ${songlist.songs?.map((song) => `
             <li class="song-item">
@@ -218,7 +218,7 @@ export default function PrintModal({ songlist, onClose }) {
             <p className="font-bold">{songlist.name}</p>
             {songlist.date && (
               <p className="text-gray-500 text-xs mb-2">
-                {new Date(songlist.date).toLocaleDateString()}
+                {new Date(songlist.date + 'T00:00:00').toLocaleDateString()}
               </p>
             )}
             <ol className={options.showNumbers ? 'list-decimal list-inside' : 'list-none'}>
