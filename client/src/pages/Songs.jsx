@@ -1,29 +1,61 @@
 import { useState, useEffect } from 'react'
-import { getSongs, createSong, updateSong, deleteSong } from '../api'
+import { getSongs, createSong, updateSong, deleteSong, getTags, addTagToSong, removeTagFromSong } from '../api'
 import SongForm from '../components/SongForm'
 
 export default function Songs() {
   const [songs, setSongs] = useState([])
+  const [tags, setTags] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [editingSong, setEditingSong] = useState(null)
   const [search, setSearch] = useState('')
+  const [tagFilter, setTagFilter] = useState(null)
+  const [tagMenuOpen, setTagMenuOpen] = useState(null)
 
   useEffect(() => {
-    loadSongs()
+    loadData()
   }, [])
 
-  const loadSongs = async () => {
+  const loadData = async () => {
     try {
       setLoading(true)
-      const data = await getSongs()
-      setSongs(data)
+      const [songsData, tagsData] = await Promise.all([getSongs(), getTags()])
+      setSongs(songsData)
+      setTags(tagsData)
       setError(null)
     } catch (err) {
       setError('Failed to load songs')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadSongs = async () => {
+    try {
+      const data = await getSongs()
+      setSongs(data)
+    } catch (err) {
+      setError('Failed to load songs')
+    }
+  }
+
+  const handleAddTag = async (songId, tagId) => {
+    try {
+      const updated = await addTagToSong(songId, tagId)
+      setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+      setTagMenuOpen(null)
+    } catch (err) {
+      alert('Failed to add tag')
+    }
+  }
+
+  const handleRemoveTag = async (songId, tagId) => {
+    try {
+      const updated = await removeTagFromSong(songId, tagId)
+      setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
+    } catch (err) {
+      alert('Failed to remove tag')
     }
   }
 
@@ -65,11 +97,13 @@ export default function Songs() {
     }
   }
 
-  const filteredSongs = songs.filter(
-    (s) =>
+  const filteredSongs = songs.filter((s) => {
+    const matchesSearch =
       s.title.toLowerCase().includes(search.toLowerCase()) ||
       s.artist.toLowerCase().includes(search.toLowerCase())
-  )
+    const matchesTag = !tagFilter || s.tags?.some((t) => t.id === tagFilter)
+    return matchesSearch && matchesTag
+  })
 
   if (loading) {
     return (
@@ -94,7 +128,7 @@ export default function Songs() {
         </div>
       )}
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col sm:flex-row gap-3">
         <input
           type="text"
           placeholder="Search songs..."
@@ -102,6 +136,31 @@ export default function Songs() {
           onChange={(e) => setSearch(e.target.value)}
           className="input max-w-md"
         />
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setTagFilter(null)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+              !tagFilter
+                ? 'bg-gray-800 text-white dark:bg-gray-200 dark:text-gray-800'
+                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+            }`}
+          >
+            All
+          </button>
+          {tags.map((tag) => (
+            <button
+              key={tag.id}
+              onClick={() => setTagFilter(tagFilter === tag.id ? null : tag.id)}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors`}
+              style={{
+                backgroundColor: tagFilter === tag.id ? tag.color : `${tag.color}20`,
+                color: tagFilter === tag.id ? 'white' : tag.color,
+              }}
+            >
+              {tag.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {songs.length === 0 ? (
@@ -127,6 +186,9 @@ export default function Songs() {
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300">
                     Artist
                   </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300">
+                    Tags
+                  </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300 hidden md:table-cell">
                     Notes
                   </th>
@@ -147,6 +209,55 @@ export default function Songs() {
                     <td className="px-4 py-3 font-medium">{song.title}</td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                       {song.artist}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {song.tags?.map((tag) => (
+                          <span
+                            key={tag.id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                          >
+                            {tag.name}
+                            <button
+                              onClick={() => handleRemoveTag(song.id, tag.id)}
+                              className="hover:opacity-70"
+                            >
+                              &times;
+                            </button>
+                          </span>
+                        ))}
+                        <div className="relative">
+                          <button
+                            onClick={() => setTagMenuOpen(tagMenuOpen === song.id ? null : song.id)}
+                            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-lg leading-none"
+                          >
+                            +
+                          </button>
+                          {tagMenuOpen === song.id && (
+                            <div className="absolute z-10 mt-1 left-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]">
+                              {tags
+                                .filter((t) => !song.tags?.some((st) => st.id === t.id))
+                                .map((tag) => (
+                                  <button
+                                    key={tag.id}
+                                    onClick={() => handleAddTag(song.id, tag.id)}
+                                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                  >
+                                    <span
+                                      className="w-3 h-3 rounded-full"
+                                      style={{ backgroundColor: tag.color }}
+                                    />
+                                    {tag.name}
+                                  </button>
+                                ))}
+                              {tags.filter((t) => !song.tags?.some((st) => st.id === t.id)).length === 0 && (
+                                <span className="px-3 py-1.5 text-sm text-gray-400">No more tags</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-gray-500 dark:text-gray-400 hidden md:table-cell max-w-xs truncate">
                       {song.notes || '-'}
@@ -179,7 +290,20 @@ export default function Songs() {
                             </svg>
                           </a>
                         )}
-                        {!song.youtube_url && !song.recording_url && (
+                        {song.lyrics_url && (
+                          <a
+                            href={song.lyrics_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-600 hover:text-purple-700"
+                            title="Lyrics"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </a>
+                        )}
+                        {!song.youtube_url && !song.recording_url && !song.lyrics_url && (
                           <span className="text-gray-400">-</span>
                         )}
                       </div>
