@@ -43,16 +43,16 @@ router.get('/:id', (req, res) => {
 // Create song
 router.post('/', (req, res) => {
   try {
-    const { title, artist, notes, youtube_url, recording_url, lyrics_url } = req.body;
+    const { title, artist, notes, youtube_url, recording_url, lyrics_url, duration } = req.body;
 
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
     }
 
     const result = db.prepare(`
-      INSERT INTO songs (title, artist, notes, youtube_url, recording_url, lyrics_url)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null);
+      INSERT INTO songs (title, artist, notes, youtube_url, recording_url, lyrics_url, duration)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, duration || null);
 
     const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ ...song, tags: [] });
@@ -64,7 +64,7 @@ router.post('/', (req, res) => {
 // Update song
 router.put('/:id', (req, res) => {
   try {
-    const { title, artist, notes, youtube_url, recording_url, lyrics_url } = req.body;
+    const { title, artist, notes, youtube_url, recording_url, lyrics_url, duration } = req.body;
 
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
@@ -72,9 +72,9 @@ router.put('/:id', (req, res) => {
 
     const result = db.prepare(`
       UPDATE songs
-      SET title = ?, artist = ?, notes = ?, youtube_url = ?, recording_url = ?, lyrics_url = ?
+      SET title = ?, artist = ?, notes = ?, youtube_url = ?, recording_url = ?, lyrics_url = ?, duration = ?
       WHERE id = ?
-    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, req.params.id);
+    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, duration || null, req.params.id);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Song not found' });

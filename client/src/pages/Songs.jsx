@@ -12,6 +12,8 @@ export default function Songs() {
   const [search, setSearch] = useState('')
   const [tagFilter, setTagFilter] = useState(null)
   const [tagMenuOpen, setTagMenuOpen] = useState(null)
+  const [sortKey, setSortKey] = useState('artist')
+  const [sortDir, setSortDir] = useState('asc')
 
   useEffect(() => {
     loadData()
@@ -62,9 +64,7 @@ export default function Songs() {
   const handleCreate = async (data) => {
     try {
       const newSong = await createSong(data)
-      setSongs((prev) => [...prev, newSong].sort((a, b) =>
-        `${a.artist}${a.title}`.localeCompare(`${b.artist}${b.title}`)
-      ))
+      setSongs((prev) => [...prev, newSong])
       setShowForm(false)
     } catch (err) {
       alert('Failed to create song')
@@ -74,11 +74,7 @@ export default function Songs() {
   const handleUpdate = async (data) => {
     try {
       const updated = await updateSong(editingSong.id, data)
-      setSongs((prev) =>
-        prev.map((s) => (s.id === updated.id ? updated : s)).sort((a, b) =>
-          `${a.artist}${a.title}`.localeCompare(`${b.artist}${b.title}`)
-        )
-      )
+      setSongs((prev) => prev.map((s) => (s.id === updated.id ? updated : s)))
       setEditingSong(null)
     } catch (err) {
       alert('Failed to update song')
@@ -97,13 +93,50 @@ export default function Songs() {
     }
   }
 
-  const filteredSongs = songs.filter((s) => {
-    const matchesSearch =
-      s.title.toLowerCase().includes(search.toLowerCase()) ||
-      s.artist.toLowerCase().includes(search.toLowerCase())
-    const matchesTag = !tagFilter || s.tags?.some((t) => t.id === tagFilter)
-    return matchesSearch && matchesTag
-  })
+  const handleSort = (key) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const sortIndicator = (key) => {
+    if (sortKey !== key) return null
+    return sortDir === 'asc' ? ' \u25B2' : ' \u25BC'
+  }
+
+  const filteredSongs = songs
+    .filter((s) => {
+      const matchesSearch =
+        s.title.toLowerCase().includes(search.toLowerCase()) ||
+        s.artist.toLowerCase().includes(search.toLowerCase())
+      const matchesTag = !tagFilter || s.tags?.some((t) => t.id === tagFilter)
+      return matchesSearch && matchesTag
+    })
+    .sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1
+      switch (sortKey) {
+        case 'title':
+          return dir * a.title.localeCompare(b.title)
+        case 'artist':
+          return dir * a.artist.localeCompare(b.artist)
+        case 'duration':
+          return dir * ((a.duration || 0) - (b.duration || 0))
+        case 'notes':
+          return dir * (a.notes || '').localeCompare(b.notes || '')
+        default:
+          return 0
+      }
+    })
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '-'
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
 
   if (loading) {
     return (
@@ -180,17 +213,35 @@ export default function Songs() {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300">
-                    Title
+                  <th className="px-3 py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-300 w-10">
+                    #
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300">
-                    Artist
+                  <th
+                    className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                    onClick={() => handleSort('title')}
+                  >
+                    Title{sortIndicator('title')}
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                    onClick={() => handleSort('artist')}
+                  >
+                    Artist{sortIndicator('artist')}
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                    onClick={() => handleSort('duration')}
+                  >
+                    Time{sortIndicator('duration')}
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300">
                     Tags
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300 hidden md:table-cell">
-                    Notes
+                  <th
+                    className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300 hidden md:table-cell cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 select-none"
+                    onClick={() => handleSort('notes')}
+                  >
+                    Notes{sortIndicator('notes')}
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-600 dark:text-gray-300">
                     Links
@@ -201,14 +252,20 @@ export default function Songs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredSongs.map((song) => (
+                {filteredSongs.map((song, index) => (
                   <tr
                     key={song.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50"
                   >
+                    <td className="px-3 py-3 text-center text-gray-400 text-sm">
+                      {index + 1}
+                    </td>
                     <td className="px-4 py-3 font-medium">{song.title}</td>
                     <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                       {song.artist}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                      {formatDuration(song.duration)}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1 items-center">

@@ -8,6 +8,7 @@ export default function SongForm({ song, onSubmit, onCancel }) {
     youtube_url: '',
     recording_url: '',
     lyrics_url: '',
+    duration: '',
   })
 
   useEffect(() => {
@@ -19,13 +20,35 @@ export default function SongForm({ song, onSubmit, onCancel }) {
         youtube_url: song.youtube_url || '',
         recording_url: song.recording_url || '',
         lyrics_url: song.lyrics_url || '',
+        duration: song.duration ? formatDuration(song.duration) : '',
       })
     }
   }, [song])
 
+  const formatDuration = (seconds) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+
+  const parseDuration = (str) => {
+    if (!str) return null
+    const parts = str.split(':')
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0], 10) || 0
+      const secs = parseInt(parts[1], 10) || 0
+      return mins * 60 + secs
+    }
+    const mins = parseInt(str, 10)
+    return isNaN(mins) ? null : mins * 60
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit(formData)
+    onSubmit({
+      ...formData,
+      duration: parseDuration(formData.duration),
+    })
   }
 
   const handleChange = (e) => {
@@ -120,6 +143,20 @@ export default function SongForm({ song, onSubmit, onCancel }) {
               onChange={handleChange}
               className="input"
               placeholder="Link to lyrics..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Duration
+            </label>
+            <input
+              type="text"
+              name="duration"
+              value={formData.duration}
+              onChange={handleChange}
+              className="input"
+              placeholder="3:30"
             />
           </div>
 
