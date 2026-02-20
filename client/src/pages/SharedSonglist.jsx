@@ -80,6 +80,11 @@ export default function SharedSonglist() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
             {songlist.name}
           </h1>
+          {songlist.band_name && (
+            <p className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+              {songlist.band_name}
+            </p>
+          )}
           {songlist.date && (
             <p className="text-gray-600 dark:text-gray-400">
               {formatDate(songlist.date)}

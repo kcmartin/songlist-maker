@@ -1,8 +1,11 @@
 import { NavLink } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { useBand } from '../contexts/BandContext'
+import BandSelector from './BandSelector'
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { selectedBandId } = useBand()
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || 'system'
@@ -67,9 +70,18 @@ export default function Layout({ children }) {
               <NavLink to="/songs" className={navLinkClass}>
                 Songs
               </NavLink>
+              <NavLink to="/bands" className={navLinkClass}>
+                Bands
+              </NavLink>
+              {selectedBandId && (
+                <NavLink to="/repertoire" className={navLinkClass}>
+                  Repertoire
+                </NavLink>
+              )}
               <NavLink to="/songlists" className={navLinkClass}>
                 Songlists
               </NavLink>
+              <BandSelector />
               <button
                 onClick={cycleTheme}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
@@ -157,12 +169,31 @@ export default function Layout({ children }) {
                 Songs
               </NavLink>
               <NavLink
+                to="/bands"
+                className={navLinkClass}
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Bands
+              </NavLink>
+              {selectedBandId && (
+                <NavLink
+                  to="/repertoire"
+                  className={navLinkClass}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Repertoire
+                </NavLink>
+              )}
+              <NavLink
                 to="/songlists"
                 className={navLinkClass}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Songlists
               </NavLink>
+              <div className="px-4 py-2">
+                <BandSelector />
+              </div>
             </nav>
           )}
         </div>

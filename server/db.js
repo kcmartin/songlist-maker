@@ -86,6 +86,47 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_song_tags_tag ON song_tags(tag_id);
 `);
 
+// Create bands tables
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS band_songs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    band_id INTEGER NOT NULL,
+    song_id INTEGER NOT NULL,
+    notes TEXT,
+    duration INTEGER,
+    UNIQUE(band_id, song_id),
+    FOREIGN KEY (band_id) REFERENCES bands(id) ON DELETE CASCADE,
+    FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_band_songs_band ON band_songs(band_id);
+  CREATE INDEX IF NOT EXISTS idx_band_songs_song ON band_songs(song_id);
+
+  CREATE TABLE IF NOT EXISTS band_song_tags (
+    band_song_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (band_song_id, tag_id),
+    FOREIGN KEY (band_song_id) REFERENCES band_songs(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_band_song_tags_bs ON band_song_tags(band_song_id);
+  CREATE INDEX IF NOT EXISTS idx_band_song_tags_tag ON band_song_tags(tag_id);
+`);
+
+// Migration: Add band_id column to songlists if it doesn't exist
+const songlistColumnsForBand = db.prepare("PRAGMA table_info(songlists)").all();
+const hasBandId = songlistColumnsForBand.some(col => col.name === 'band_id');
+if (!hasBandId) {
+  db.exec(`ALTER TABLE songlists ADD COLUMN band_id INTEGER REFERENCES bands(id) ON DELETE SET NULL;`);
+}
+
 // Insert default tags if they don't exist
 const defaultTags = [
   { name: 'needs work', color: '#ef4444' },

@@ -36,8 +36,11 @@ export async function deleteSong(id) {
 }
 
 // Songlists API
-export async function getSonglists() {
-  const res = await fetch(`${API_BASE}/songlists`);
+export async function getSonglists(bandId) {
+  const url = bandId
+    ? `${API_BASE}/songlists?band_id=${bandId}`
+    : `${API_BASE}/songlists`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to fetch songlists');
   return res.json();
 }
@@ -131,5 +134,93 @@ export async function removeTagFromSong(songId, tagId) {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to remove tag');
+  return res.json();
+}
+
+// Bands API
+export async function getBands() {
+  const res = await fetch(`${API_BASE}/bands`);
+  if (!res.ok) throw new Error('Failed to fetch bands');
+  return res.json();
+}
+
+export async function createBand(data) {
+  const res = await fetch(`${API_BASE}/bands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create band');
+  return res.json();
+}
+
+export async function updateBand(id, data) {
+  const res = await fetch(`${API_BASE}/bands/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update band');
+  return res.json();
+}
+
+export async function deleteBand(id) {
+  const res = await fetch(`${API_BASE}/bands/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete band');
+  return res.json();
+}
+
+// Band Repertoire API
+export async function getBandSongs(bandId) {
+  const res = await fetch(`${API_BASE}/bands/${bandId}/songs`);
+  if (!res.ok) throw new Error('Failed to fetch band songs');
+  return res.json();
+}
+
+export async function addSongToBand(bandId, data) {
+  const res = await fetch(`${API_BASE}/bands/${bandId}/songs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to add song to band');
+  return res.json();
+}
+
+export async function updateBandSong(bandId, songId, data) {
+  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update band song');
+  return res.json();
+}
+
+export async function removeSongFromBand(bandId, songId) {
+  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove song from band');
+  return res.json();
+}
+
+export async function addTagToBandSong(bandId, songId, data) {
+  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}/tags`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to add tag to band song');
+  return res.json();
+}
+
+export async function removeTagFromBandSong(bandId, songId, tagId) {
+  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}/tags/${tagId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to remove tag from band song');
   return res.json();
 }

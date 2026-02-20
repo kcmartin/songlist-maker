@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getSonglists, createSonglist, deleteSonglist } from '../api'
+import { useBand } from '../contexts/BandContext'
 import SonglistForm from '../components/SonglistForm'
 
 export default function Songlists() {
+  const { selectedBandId, selectedBand, bands } = useBand()
   const [songlists, setSonglists] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -12,12 +14,12 @@ export default function Songlists() {
 
   useEffect(() => {
     loadSonglists()
-  }, [])
+  }, [selectedBandId])
 
   const loadSonglists = async () => {
     try {
       setLoading(true)
-      const data = await getSonglists()
+      const data = await getSonglists(selectedBandId)
       setSonglists(data)
       setError(null)
     } catch (err) {
@@ -77,7 +79,14 @@ export default function Songlists() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold">Songlists</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Songlists</h1>
+          {selectedBand && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Filtered to {selectedBand.name}
+            </p>
+          )}
+        </div>
         <button onClick={() => setShowForm(true)} className="btn btn-primary">
           + New Songlist
         </button>
@@ -127,15 +136,22 @@ export default function Songlists() {
               className="card p-4 hover:shadow-md transition-shadow group"
             >
               <div className="flex items-start justify-between mb-2">
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    list.type === 'gig'
-                      ? 'bg-gig-100 text-gig-700 dark:bg-gig-900 dark:text-gig-300'
-                      : 'bg-practice-100 text-practice-700 dark:bg-practice-900 dark:text-practice-300'
-                  }`}
-                >
-                  {list.type === 'gig' ? 'Gig' : 'Practice'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      list.type === 'gig'
+                        ? 'bg-gig-100 text-gig-700 dark:bg-gig-900 dark:text-gig-300'
+                        : 'bg-practice-100 text-practice-700 dark:bg-practice-900 dark:text-practice-300'
+                    }`}
+                  >
+                    {list.type === 'gig' ? 'Gig' : 'Practice'}
+                  </span>
+                  {list.band_name && (
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">
+                      {list.band_name}
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={(e) => handleDelete(list.id, e)}
                   className="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -180,6 +196,8 @@ export default function Songlists() {
 
       {showForm && (
         <SonglistForm
+          bands={bands}
+          defaultBandId={selectedBandId}
           onSubmit={handleCreate}
           onCancel={() => setShowForm(false)}
         />

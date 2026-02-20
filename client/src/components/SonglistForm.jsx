@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 
-export default function SonglistForm({ songlist, onSubmit, onCancel }) {
+export default function SonglistForm({ songlist, bands, defaultBandId, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
     name: '',
     type: 'practice',
     date: '',
     notes: '',
+    band_id: defaultBandId || '',
   })
 
   useEffect(() => {
@@ -15,13 +16,17 @@ export default function SonglistForm({ songlist, onSubmit, onCancel }) {
         type: songlist.type || 'practice',
         date: songlist.date || '',
         notes: songlist.notes || '',
+        band_id: songlist.band_id || '',
       })
     }
   }, [songlist])
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSubmit(formData)
+    onSubmit({
+      ...formData,
+      band_id: formData.band_id ? Number(formData.band_id) : null,
+    })
   }
 
   const handleChange = (e) => {
@@ -88,6 +93,25 @@ export default function SonglistForm({ songlist, onSubmit, onCancel }) {
               </label>
             </div>
           </div>
+
+          {bands && bands.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Band</label>
+              <select
+                name="band_id"
+                value={formData.band_id}
+                onChange={handleChange}
+                className="input"
+              >
+                <option value="">No band</option>
+                {bands.map((band) => (
+                  <option key={band.id} value={band.id}>
+                    {band.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1">Date</label>

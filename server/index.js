@@ -6,6 +6,7 @@ import songsRouter from './routes/songs.js';
 import songlistsRouter from './routes/songlists.js';
 import tagsRouter from './routes/tags.js';
 import backupRouter from './routes/backup.js';
+import bandsRouter from './routes/bands.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -19,6 +20,7 @@ app.use('/api/songs', songsRouter);
 app.use('/api/songlists', songlistsRouter);
 app.use('/api/tags', tagsRouter);
 app.use('/api/backup', backupRouter);
+app.use('/api/bands', bandsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

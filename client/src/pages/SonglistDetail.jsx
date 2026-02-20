@@ -19,12 +19,14 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   getSonglist,
   getSongs,
+  getBandSongs,
   updateSonglist,
   updateSonglistSongs,
   deleteSonglist,
   generateShareLink,
   removeShareLink,
 } from '../api'
+import { useBand } from '../contexts/BandContext'
 import SonglistForm from '../components/SonglistForm'
 import PrintModal from '../components/PrintModal'
 
@@ -123,6 +125,7 @@ function SortableSong({ song, onRemove, display }) {
 export default function SonglistDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { bands } = useBand()
 
   const [songlist, setSonglist] = useState(null)
   const [allSongs, setAllSongs] = useState([])
@@ -168,10 +171,16 @@ export default function SonglistDetail() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [listData, songsData] = await Promise.all([
-        getSonglist(id),
-        getSongs(),
-      ])
+      const listData = await getSonglist(id)
+
+      // If songlist has a band, fetch band repertoire; otherwise fetch all songs
+      let songsData
+      if (listData.band_id) {
+        songsData = await getBandSongs(listData.band_id)
+      } else {
+        songsData = await getSongs()
+      }
+
       setSonglist(listData)
       setAllSongs(songsData)
     } catch (err) {
@@ -230,6 +239,8 @@ export default function SonglistDetail() {
       await updateSonglist(id, data)
       setSonglist((prev) => ({ ...prev, ...data }))
       setShowEditForm(false)
+      // Reload to refresh band-specific data if band changed
+      loadData()
     } catch (err) {
       alert('Failed to update songlist')
     }
@@ -332,6 +343,11 @@ export default function SonglistDetail() {
               >
                 {songlist.type === 'gig' ? 'Gig' : 'Practice'}
               </span>
+              {songlist.band_name && (
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">
+                  {songlist.band_name}
+                </span>
+              )}
             </div>
             <h1 className="text-2xl font-bold mb-1">{songlist.name}</h1>
             {songlist.date && (
@@ -431,7 +447,9 @@ export default function SonglistDetail() {
             </button>
           ) : (
             <p className="text-sm text-gray-400">
-              Add some songs to your library first!
+              {songlist.band_id
+                ? 'Add some songs to the band\'s repertoire first!'
+                : 'Add some songs to your library first!'}
             </p>
           )}
         </div>
@@ -466,6 +484,7 @@ export default function SonglistDetail() {
       {showEditForm && (
         <SonglistForm
           songlist={songlist}
+          bands={bands}
           onSubmit={handleUpdateDetails}
           onCancel={() => setShowEditForm(false)}
         />
@@ -474,10 +493,21 @@ export default function SonglistDetail() {
       {showAddSong && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="card p-6 w-full max-w-md max-h-[80vh] flex flex-col">
-            <h2 className="text-xl font-bold mb-4">Add Song</h2>
+            <h2 className="text-xl font-bold mb-4">
+              Add Song
+              {songlist.band_name && (
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  from {songlist.band_name} repertoire
+                </span>
+              )}
+            </h2>
 
             {availableSongs.length === 0 ? (
-              <p className="text-gray-500">All songs are already in this list.</p>
+              <p className="text-gray-500">
+                {songlist.band_id
+                  ? 'All songs from the band repertoire are already in this list.'
+                  : 'All songs are already in this list.'}
+              </p>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2">
                 {availableSongs.map((song) => (
