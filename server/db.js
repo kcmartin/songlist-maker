@@ -127,6 +127,62 @@ if (!hasBandId) {
   db.exec(`ALTER TABLE songlists ADD COLUMN band_id INTEGER REFERENCES bands(id) ON DELETE SET NULL;`);
 }
 
+// Create auth tables
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT,
+    avatar_url TEXT,
+    provider TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(provider, provider_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS band_members (
+    band_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'member')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (band_id, user_id),
+    FOREIGN KEY (band_id) REFERENCES bands(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS band_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    band_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    created_by INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (band_id) REFERENCES bands(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS sessions (
+    sid TEXT PRIMARY KEY,
+    sess TEXT NOT NULL,
+    expired INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sessions_expired ON sessions(expired);
+`);
+
+// Migration: Add created_by to bands
+const bandColumns = db.prepare("PRAGMA table_info(bands)").all();
+const bandsHasCreatedBy = bandColumns.some(col => col.name === 'created_by');
+if (!bandsHasCreatedBy) {
+  db.exec(`ALTER TABLE bands ADD COLUMN created_by INTEGER REFERENCES users(id);`);
+}
+
+// Migration: Add created_by to songlists
+const songlistColumnsForCreatedBy = db.prepare("PRAGMA table_info(songlists)").all();
+const songlistsHasCreatedBy = songlistColumnsForCreatedBy.some(col => col.name === 'created_by');
+if (!songlistsHasCreatedBy) {
+  db.exec(`ALTER TABLE songlists ADD COLUMN created_by INTEGER REFERENCES users(id);`);
+}
+
 // Insert default tags if they don't exist
 const defaultTags = [
   { name: 'needs work', color: '#ef4444' },

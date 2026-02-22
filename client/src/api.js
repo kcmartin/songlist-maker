@@ -1,14 +1,33 @@
 const API_BASE = '/api';
 
+const fetchOpts = { credentials: 'include' };
+
+function authFetch(url, opts = {}) {
+  return fetch(url, { ...fetchOpts, ...opts });
+}
+
+// Auth API
+export async function getCurrentUser() {
+  const res = await authFetch(`${API_BASE}/auth/me`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function logout() {
+  const res = await authFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+  if (!res.ok) throw new Error('Logout failed');
+  return res.json();
+}
+
 // Songs API
 export async function getSongs() {
-  const res = await fetch(`${API_BASE}/songs`);
+  const res = await authFetch(`${API_BASE}/songs`);
   if (!res.ok) throw new Error('Failed to fetch songs');
   return res.json();
 }
 
 export async function createSong(song) {
-  const res = await fetch(`${API_BASE}/songs`, {
+  const res = await authFetch(`${API_BASE}/songs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(song),
@@ -18,7 +37,7 @@ export async function createSong(song) {
 }
 
 export async function updateSong(id, song) {
-  const res = await fetch(`${API_BASE}/songs/${id}`, {
+  const res = await authFetch(`${API_BASE}/songs/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(song),
@@ -28,7 +47,7 @@ export async function updateSong(id, song) {
 }
 
 export async function deleteSong(id) {
-  const res = await fetch(`${API_BASE}/songs/${id}`, {
+  const res = await authFetch(`${API_BASE}/songs/${id}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete song');
@@ -40,19 +59,19 @@ export async function getSonglists(bandId) {
   const url = bandId
     ? `${API_BASE}/songlists?band_id=${bandId}`
     : `${API_BASE}/songlists`;
-  const res = await fetch(url);
+  const res = await authFetch(url);
   if (!res.ok) throw new Error('Failed to fetch songlists');
   return res.json();
 }
 
 export async function getSonglist(id) {
-  const res = await fetch(`${API_BASE}/songlists/${id}`);
+  const res = await authFetch(`${API_BASE}/songlists/${id}`);
   if (!res.ok) throw new Error('Failed to fetch songlist');
   return res.json();
 }
 
 export async function createSonglist(songlist) {
-  const res = await fetch(`${API_BASE}/songlists`, {
+  const res = await authFetch(`${API_BASE}/songlists`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(songlist),
@@ -62,7 +81,7 @@ export async function createSonglist(songlist) {
 }
 
 export async function updateSonglist(id, songlist) {
-  const res = await fetch(`${API_BASE}/songlists/${id}`, {
+  const res = await authFetch(`${API_BASE}/songlists/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(songlist),
@@ -72,7 +91,7 @@ export async function updateSonglist(id, songlist) {
 }
 
 export async function deleteSonglist(id) {
-  const res = await fetch(`${API_BASE}/songlists/${id}`, {
+  const res = await authFetch(`${API_BASE}/songlists/${id}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete songlist');
@@ -80,7 +99,7 @@ export async function deleteSonglist(id) {
 }
 
 export async function updateSonglistSongs(id, songIds) {
-  const res = await fetch(`${API_BASE}/songlists/${id}/songs`, {
+  const res = await authFetch(`${API_BASE}/songlists/${id}/songs`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ songIds }),
@@ -91,7 +110,7 @@ export async function updateSonglistSongs(id, songIds) {
 
 // Share API
 export async function generateShareLink(id) {
-  const res = await fetch(`${API_BASE}/songlists/${id}/share`, {
+  const res = await authFetch(`${API_BASE}/songlists/${id}/share`, {
     method: 'POST',
   });
   if (!res.ok) throw new Error('Failed to generate share link');
@@ -99,7 +118,7 @@ export async function generateShareLink(id) {
 }
 
 export async function removeShareLink(id) {
-  const res = await fetch(`${API_BASE}/songlists/${id}/share`, {
+  const res = await authFetch(`${API_BASE}/songlists/${id}/share`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to remove share link');
@@ -114,13 +133,13 @@ export async function getSharedSonglist(token) {
 
 // Tags API
 export async function getTags() {
-  const res = await fetch(`${API_BASE}/tags`);
+  const res = await authFetch(`${API_BASE}/tags`);
   if (!res.ok) throw new Error('Failed to fetch tags');
   return res.json();
 }
 
 export async function addTagToSong(songId, tagId) {
-  const res = await fetch(`${API_BASE}/songs/${songId}/tags`, {
+  const res = await authFetch(`${API_BASE}/songs/${songId}/tags`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tagId }),
@@ -130,7 +149,7 @@ export async function addTagToSong(songId, tagId) {
 }
 
 export async function removeTagFromSong(songId, tagId) {
-  const res = await fetch(`${API_BASE}/songs/${songId}/tags/${tagId}`, {
+  const res = await authFetch(`${API_BASE}/songs/${songId}/tags/${tagId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to remove tag');
@@ -139,13 +158,13 @@ export async function removeTagFromSong(songId, tagId) {
 
 // Bands API
 export async function getBands() {
-  const res = await fetch(`${API_BASE}/bands`);
+  const res = await authFetch(`${API_BASE}/bands`);
   if (!res.ok) throw new Error('Failed to fetch bands');
   return res.json();
 }
 
 export async function createBand(data) {
-  const res = await fetch(`${API_BASE}/bands`, {
+  const res = await authFetch(`${API_BASE}/bands`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -155,7 +174,7 @@ export async function createBand(data) {
 }
 
 export async function updateBand(id, data) {
-  const res = await fetch(`${API_BASE}/bands/${id}`, {
+  const res = await authFetch(`${API_BASE}/bands/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -165,7 +184,7 @@ export async function updateBand(id, data) {
 }
 
 export async function deleteBand(id) {
-  const res = await fetch(`${API_BASE}/bands/${id}`, {
+  const res = await authFetch(`${API_BASE}/bands/${id}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to delete band');
@@ -174,13 +193,13 @@ export async function deleteBand(id) {
 
 // Band Repertoire API
 export async function getBandSongs(bandId) {
-  const res = await fetch(`${API_BASE}/bands/${bandId}/songs`);
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/songs`);
   if (!res.ok) throw new Error('Failed to fetch band songs');
   return res.json();
 }
 
 export async function addSongToBand(bandId, data) {
-  const res = await fetch(`${API_BASE}/bands/${bandId}/songs`, {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/songs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -190,7 +209,7 @@ export async function addSongToBand(bandId, data) {
 }
 
 export async function updateBandSong(bandId, songId, data) {
-  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}`, {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/songs/${songId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -200,7 +219,7 @@ export async function updateBandSong(bandId, songId, data) {
 }
 
 export async function removeSongFromBand(bandId, songId) {
-  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}`, {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/songs/${songId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to remove song from band');
@@ -208,7 +227,7 @@ export async function removeSongFromBand(bandId, songId) {
 }
 
 export async function addTagToBandSong(bandId, songId, data) {
-  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}/tags`, {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/songs/${songId}/tags`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -218,9 +237,32 @@ export async function addTagToBandSong(bandId, songId, data) {
 }
 
 export async function removeTagFromBandSong(bandId, songId, tagId) {
-  const res = await fetch(`${API_BASE}/bands/${bandId}/songs/${songId}/tags/${tagId}`, {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/songs/${songId}/tags/${tagId}`, {
     method: 'DELETE',
   });
   if (!res.ok) throw new Error('Failed to remove tag from band song');
+  return res.json();
+}
+
+// Band Invites API
+export async function createBandInvite(bandId) {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/invites`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to create invite');
+  return res.json();
+}
+
+export async function getInviteInfo(token) {
+  const res = await authFetch(`${API_BASE}/bands/invite/${token}`);
+  if (!res.ok) throw new Error('Invite not found');
+  return res.json();
+}
+
+export async function acceptInvite(token) {
+  const res = await authFetch(`${API_BASE}/bands/invite/${token}/accept`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to accept invite');
   return res.json();
 }

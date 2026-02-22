@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import db from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -47,27 +48,54 @@ router.get('/share/:token', (req, res) => {
   }
 });
 
-// Get all songlists with song counts
+// All remaining routes require auth
+router.use(requireAuth);
+
+// Helper: check if user can access a songlist
+function canAccessSonglist(songlist, userId) {
+  if (!songlist) return false;
+  // Bandless songlist: only creator
+  if (!songlist.band_id) {
+    return songlist.created_by === userId || songlist.created_by === null;
+  }
+  // Band songlist: must be a member
+  return db.prepare('SELECT 1 FROM band_members WHERE band_id = ? AND user_id = ?').get(songlist.band_id, userId);
+}
+
+// Get all songlists (user's bands + user's bandless songlists)
 router.get('/', (req, res) => {
   try {
     const { band_id } = req.query;
-    let query = `
-      SELECT
-        s.*,
-        b.name as band_name,
-        COUNT(si.id) as song_count
+    const userId = req.user.id;
+
+    if (band_id) {
+      // Check membership
+      const member = db.prepare('SELECT 1 FROM band_members WHERE band_id = ? AND user_id = ?').get(band_id, userId);
+      if (!member) {
+        return res.json([]);
+      }
+      const songlists = db.prepare(`
+        SELECT s.*, b.name as band_name, COUNT(si.id) as song_count
+        FROM songlists s
+        LEFT JOIN songlist_items si ON s.id = si.songlist_id
+        LEFT JOIN bands b ON s.band_id = b.id
+        WHERE s.band_id = ?
+        GROUP BY s.id ORDER BY s.date DESC, s.created_at DESC
+      `).all(band_id);
+      return res.json(songlists);
+    }
+
+    // All songlists: user's bands + user's bandless songlists
+    const songlists = db.prepare(`
+      SELECT s.*, b.name as band_name, COUNT(si.id) as song_count
       FROM songlists s
       LEFT JOIN songlist_items si ON s.id = si.songlist_id
       LEFT JOIN bands b ON s.band_id = b.id
-    `;
-    const params = [];
-    if (band_id) {
-      query += ` WHERE s.band_id = ?`;
-      params.push(band_id);
-    }
-    query += ` GROUP BY s.id ORDER BY s.date DESC, s.created_at DESC`;
-
-    const songlists = db.prepare(query).all(...params);
+      WHERE
+        (s.band_id IS NOT NULL AND s.band_id IN (SELECT band_id FROM band_members WHERE user_id = ?))
+        OR (s.band_id IS NULL AND (s.created_by = ? OR s.created_by IS NULL))
+      GROUP BY s.id ORDER BY s.date DESC, s.created_at DESC
+    `).all(userId, userId);
     res.json(songlists);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -86,6 +114,10 @@ router.get('/:id', (req, res) => {
 
     if (!songlist) {
       return res.status(404).json({ error: 'Songlist not found' });
+    }
+
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     let songs;
@@ -129,10 +161,18 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: 'Type must be gig or practice' });
     }
 
+    // If band_id provided, check membership
+    if (band_id) {
+      const member = db.prepare('SELECT 1 FROM band_members WHERE band_id = ? AND user_id = ?').get(band_id, req.user.id);
+      if (!member) {
+        return res.status(403).json({ error: 'Not a member of this band' });
+      }
+    }
+
     const result = db.prepare(`
-      INSERT INTO songlists (name, type, date, notes, band_id)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(name, type, date || null, notes || null, band_id || null);
+      INSERT INTO songlists (name, type, date, notes, band_id, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(name, type, date || null, notes || null, band_id || null, req.user.id);
 
     const songlist = db.prepare(`
       SELECT s.*, b.name as band_name
@@ -159,23 +199,27 @@ router.put('/:id', (req, res) => {
       return res.status(400).json({ error: 'Type must be gig or practice' });
     }
 
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     const result = db.prepare(`
       UPDATE songlists
       SET name = ?, type = ?, date = ?, notes = ?, band_id = ?
       WHERE id = ?
     `).run(name, type, date || null, notes || null, band_id ?? null, req.params.id);
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Songlist not found' });
-    }
-
-    const songlist = db.prepare(`
+    const updated = db.prepare(`
       SELECT s.*, b.name as band_name
       FROM songlists s
       LEFT JOIN bands b ON s.band_id = b.id
       WHERE s.id = ?
     `).get(req.params.id);
-    res.json(songlist);
+    res.json(updated);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -184,12 +228,15 @@ router.put('/:id', (req, res) => {
 // Delete songlist
 router.delete('/:id', (req, res) => {
   try {
-    const result = db.prepare('DELETE FROM songlists WHERE id = ?').run(req.params.id);
-
-    if (result.changes === 0) {
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
       return res.status(404).json({ error: 'Songlist not found' });
     }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
+    db.prepare('DELETE FROM songlists WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -202,18 +249,17 @@ router.put('/:id/songs', (req, res) => {
     const { songIds } = req.body;
     const songlistId = req.params.id;
 
-    // Verify songlist exists
     const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(songlistId);
     if (!songlist) {
       return res.status(404).json({ error: 'Songlist not found' });
     }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
-    // Use transaction for atomic update
     const updateSongs = db.transaction((ids) => {
-      // Remove all existing items
       db.prepare('DELETE FROM songlist_items WHERE songlist_id = ?').run(songlistId);
 
-      // Add new items with positions
       const insert = db.prepare(`
         INSERT INTO songlist_items (songlist_id, song_id, position)
         VALUES (?, ?, ?)
@@ -226,7 +272,6 @@ router.put('/:id/songs', (req, res) => {
 
     updateSongs(songIds || []);
 
-    // Return updated songlist with songs
     const songs = db.prepare(`
       SELECT s.*, si.position
       FROM songs s
@@ -248,13 +293,14 @@ router.post('/:id/share', (req, res) => {
     if (!songlist) {
       return res.status(404).json({ error: 'Songlist not found' });
     }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
-    // If already has a token, return it
     if (songlist.share_token) {
       return res.json({ share_token: songlist.share_token });
     }
 
-    // Generate new token
     const token = crypto.randomBytes(16).toString('hex');
     db.prepare('UPDATE songlists SET share_token = ? WHERE id = ?').run(token, req.params.id);
 
@@ -267,12 +313,15 @@ router.post('/:id/share', (req, res) => {
 // Remove share token from songlist
 router.delete('/:id/share', (req, res) => {
   try {
-    const result = db.prepare('UPDATE songlists SET share_token = NULL WHERE id = ?').run(req.params.id);
-
-    if (result.changes === 0) {
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
       return res.status(404).json({ error: 'Songlist not found' });
     }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
+    db.prepare('UPDATE songlists SET share_token = NULL WHERE id = ?').run(req.params.id);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

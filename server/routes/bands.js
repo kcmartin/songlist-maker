@@ -1,25 +1,48 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import db from '../db.js';
 
 const router = Router();
 
-// Get all bands
+// Helper: check if user is a member of a band
+function isMember(bandId, userId) {
+  return db.prepare('SELECT 1 FROM band_members WHERE band_id = ? AND user_id = ?').get(bandId, userId);
+}
+
+// Helper: check if user is the owner of a band
+function isOwner(bandId, userId) {
+  return db.prepare("SELECT 1 FROM band_members WHERE band_id = ? AND user_id = ? AND role = 'owner'").get(bandId, userId);
+}
+
+// Middleware: require band membership
+function requireMember(req, res, next) {
+  const bandId = req.params.id;
+  if (!isMember(bandId, req.user.id)) {
+    return res.status(403).json({ error: 'Not a member of this band' });
+  }
+  next();
+}
+
+// Get all bands (user is a member of)
 router.get('/', (req, res) => {
   try {
     const bands = db.prepare(`
-      SELECT b.*, COUNT(bs.id) as song_count
+      SELECT b.*, COUNT(bs.id) as song_count,
+        bm.role as user_role,
+        (SELECT COUNT(*) FROM band_members WHERE band_id = b.id) as member_count
       FROM bands b
+      JOIN band_members bm ON b.id = bm.band_id AND bm.user_id = ?
       LEFT JOIN band_songs bs ON b.id = bs.band_id
       GROUP BY b.id
       ORDER BY b.name
-    `).all();
+    `).all(req.user.id);
     res.json(bands);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Create band
+// Create band (auto-add creator as owner)
 router.post('/', (req, res) => {
   try {
     const { name } = req.body;
@@ -27,16 +50,25 @@ router.post('/', (req, res) => {
       return res.status(400).json({ error: 'Name is required' });
     }
 
-    const result = db.prepare('INSERT INTO bands (name) VALUES (?)').run(name);
-    const band = db.prepare('SELECT * FROM bands WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json({ ...band, song_count: 0 });
+    const createBand = db.transaction(() => {
+      const result = db.prepare('INSERT INTO bands (name, created_by) VALUES (?, ?)').run(name, req.user.id);
+      const bandId = result.lastInsertRowid;
+      db.prepare("INSERT INTO band_members (band_id, user_id, role) VALUES (?, ?, 'owner')").run(bandId, req.user.id);
+      return db.prepare(`
+        SELECT b.*, 0 as song_count, 'owner' as user_role, 1 as member_count
+        FROM bands b WHERE b.id = ?
+      `).get(bandId);
+    });
+
+    const band = createBand();
+    res.status(201).json(band);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update band
-router.put('/:id', (req, res) => {
+// Update band (any member)
+router.put('/:id', requireMember, (req, res) => {
   try {
     const { name } = req.body;
     if (!name) {
@@ -55,9 +87,13 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// Delete band
+// Delete band (owner only)
 router.delete('/:id', (req, res) => {
   try {
+    if (!isOwner(req.params.id, req.user.id)) {
+      return res.status(403).json({ error: 'Only the band owner can delete this band' });
+    }
+
     const result = db.prepare('DELETE FROM bands WHERE id = ?').run(req.params.id);
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Band not found' });
@@ -68,14 +104,76 @@ router.delete('/:id', (req, res) => {
   }
 });
 
-// Get band repertoire (songs with overrides merged)
-router.get('/:id/songs', (req, res) => {
+// Create invite link (any member)
+router.post('/:id/invites', requireMember, (req, res) => {
   try {
-    const band = db.prepare('SELECT * FROM bands WHERE id = ?').get(req.params.id);
-    if (!band) {
-      return res.status(404).json({ error: 'Band not found' });
+    const token = crypto.randomBytes(16).toString('hex');
+    db.prepare('INSERT INTO band_invites (band_id, token, created_by) VALUES (?, ?, ?)').run(
+      req.params.id, token, req.user.id
+    );
+    res.status(201).json({ token });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get invite info (any authenticated user)
+router.get('/invite/:token', (req, res) => {
+  try {
+    const invite = db.prepare(`
+      SELECT bi.*, b.name as band_name
+      FROM band_invites bi
+      JOIN bands b ON bi.band_id = b.id
+      WHERE bi.token = ?
+    `).get(req.params.token);
+
+    if (!invite) {
+      return res.status(404).json({ error: 'Invite not found' });
     }
 
+    const alreadyMember = isMember(invite.band_id, req.user.id);
+    res.json({
+      band_name: invite.band_name,
+      band_id: invite.band_id,
+      already_member: !!alreadyMember,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Accept invite (join band as member)
+router.post('/invite/:token/accept', (req, res) => {
+  try {
+    const invite = db.prepare(`
+      SELECT bi.*, b.name as band_name
+      FROM band_invites bi
+      JOIN bands b ON bi.band_id = b.id
+      WHERE bi.token = ?
+    `).get(req.params.token);
+
+    if (!invite) {
+      return res.status(404).json({ error: 'Invite not found' });
+    }
+
+    // Check if already a member
+    if (isMember(invite.band_id, req.user.id)) {
+      return res.json({ success: true, already_member: true, band_id: invite.band_id });
+    }
+
+    db.prepare("INSERT INTO band_members (band_id, user_id, role) VALUES (?, ?, 'member')").run(
+      invite.band_id, req.user.id
+    );
+
+    res.json({ success: true, band_id: invite.band_id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get band repertoire (songs with overrides merged)
+router.get('/:id/songs', requireMember, (req, res) => {
+  try {
     const songs = db.prepare(`
       SELECT
         s.id, s.title, s.artist, s.youtube_url, s.recording_url, s.lyrics_url, s.created_at,
@@ -111,7 +209,7 @@ router.get('/:id/songs', (req, res) => {
 });
 
 // Add song to band repertoire
-router.post('/:id/songs', (req, res) => {
+router.post('/:id/songs', requireMember, (req, res) => {
   try {
     const { songId, notes, duration } = req.body;
     if (!songId) {
@@ -143,7 +241,7 @@ router.post('/:id/songs', (req, res) => {
 });
 
 // Update band-specific overrides for a song
-router.put('/:id/songs/:songId', (req, res) => {
+router.put('/:id/songs/:songId', requireMember, (req, res) => {
   try {
     const { notes, duration } = req.body;
 
@@ -163,7 +261,7 @@ router.put('/:id/songs/:songId', (req, res) => {
 });
 
 // Remove song from band repertoire
-router.delete('/:id/songs/:songId', (req, res) => {
+router.delete('/:id/songs/:songId', requireMember, (req, res) => {
   try {
     const result = db.prepare(`
       DELETE FROM band_songs WHERE band_id = ? AND song_id = ?
@@ -180,7 +278,7 @@ router.delete('/:id/songs/:songId', (req, res) => {
 });
 
 // Add tag to band-song
-router.post('/:id/songs/:songId/tags', (req, res) => {
+router.post('/:id/songs/:songId/tags', requireMember, (req, res) => {
   try {
     const { tagId } = req.body;
     if (!tagId) {
@@ -213,7 +311,7 @@ router.post('/:id/songs/:songId/tags', (req, res) => {
 });
 
 // Remove tag from band-song
-router.delete('/:id/songs/:songId/tags/:tagId', (req, res) => {
+router.delete('/:id/songs/:songId/tags/:tagId', requireMember, (req, res) => {
   try {
     const bandSong = db.prepare(`
       SELECT id FROM band_songs WHERE band_id = ? AND song_id = ?

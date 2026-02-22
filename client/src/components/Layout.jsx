@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useBand } from '../contexts/BandContext'
+import { useAuth } from '../contexts/AuthContext'
 import BandSelector from './BandSelector'
 
 export default function Layout({ children }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { selectedBandId } = useBand()
+  const { user, logout } = useAuth()
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || 'system'
@@ -103,6 +105,29 @@ export default function Layout({ children }) {
                   </svg>
                 )}
               </button>
+              {user && (
+                <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-200 dark:border-gray-600">
+                  {user.avatar_url ? (
+                    <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-sm font-medium text-indigo-700 dark:text-indigo-200">
+                      {user.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:inline">
+                    {user.name}
+                  </span>
+                  <button
+                    onClick={logout}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
+                    title="Sign out"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </nav>
 
             {/* Mobile menu button */}
@@ -194,6 +219,28 @@ export default function Layout({ children }) {
               <div className="px-4 py-2">
                 <BandSelector />
               </div>
+              {user && (
+                <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200 dark:border-gray-700 mt-2 pt-4">
+                  <div className="flex items-center gap-2">
+                    {user.avatar_url ? (
+                      <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                    ) : (
+                      <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-sm font-medium text-indigo-700 dark:text-indigo-200">
+                        {user.name?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {user.name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { logout(); setMobileMenuOpen(false); }}
+                    className="text-sm text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
             </nav>
           )}
         </div>
