@@ -2,8 +2,18 @@ const API_BASE = '/api';
 
 const fetchOpts = { credentials: 'include' };
 
-function authFetch(url, opts = {}) {
-  return fetch(url, { ...fetchOpts, ...opts });
+let onAuthExpired = null;
+
+export function setAuthExpiredHandler(handler) {
+  onAuthExpired = handler;
+}
+
+async function authFetch(url, opts = {}) {
+  const res = await fetch(url, { ...fetchOpts, ...opts });
+  if (res.status === 401 && onAuthExpired && !url.includes('/auth/')) {
+    onAuthExpired();
+  }
+  return res;
 }
 
 // Auth API

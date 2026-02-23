@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { getCurrentUser, logout as apiLogout } from '../api'
+import { getCurrentUser, logout as apiLogout, setAuthExpiredHandler } from '../api'
 
 const AuthContext = createContext()
 
@@ -21,6 +21,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
+
+  useEffect(() => {
+    setAuthExpiredHandler(() => {
+      setUser(null)
+    })
+    return () => setAuthExpiredHandler(null)
+  }, [])
 
   const logout = useCallback(async () => {
     try {
