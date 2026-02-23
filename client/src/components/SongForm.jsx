@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { getSongs } from '../api'
 
 export default function SongForm({ song, onSubmit, onCancel }) {
   const [formData, setFormData] = useState({
@@ -10,6 +11,23 @@ export default function SongForm({ song, onSubmit, onCancel }) {
     lyrics_url: '',
     duration: '',
   })
+
+  const [artists, setArtists] = useState([])
+  const [showArtists, setShowArtists] = useState(false)
+  const [highlightedIndex, setHighlightedIndex] = useState(-1)
+  const artistRef = useRef(null)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    getSongs().then(songs => {
+      const unique = [...new Set(songs.map(s => s.artist).filter(Boolean))].sort()
+      setArtists(unique)
+    }).catch(() => {})
+  }, [])
+
+  const filteredArtists = formData.artist
+    ? artists.filter(a => a.toLowerCase().includes(formData.artist.toLowerCase()) && a !== formData.artist)
+    : artists
 
   useEffect(() => {
     if (song) {
@@ -79,18 +97,66 @@ export default function SongForm({ song, onSubmit, onCancel }) {
             />
           </div>
 
-          <div>
+          <div className="relative" ref={dropdownRef}>
             <label className="block text-sm font-medium mb-1">
               Artist <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="artist"
+              ref={artistRef}
               value={formData.artist}
-              onChange={handleChange}
+              onChange={(e) => {
+                handleChange(e)
+                setShowArtists(true)
+                setHighlightedIndex(-1)
+              }}
+              onFocus={() => setShowArtists(true)}
+              onBlur={(e) => {
+                if (!dropdownRef.current?.contains(e.relatedTarget)) {
+                  setTimeout(() => setShowArtists(false), 150)
+                }
+              }}
+              onKeyDown={(e) => {
+                if (!showArtists || filteredArtists.length === 0) return
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setHighlightedIndex(i => Math.min(i + 1, filteredArtists.length - 1))
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setHighlightedIndex(i => Math.max(i - 1, 0))
+                } else if (e.key === 'Enter' && highlightedIndex >= 0) {
+                  e.preventDefault()
+                  setFormData(prev => ({ ...prev, artist: filteredArtists[highlightedIndex] }))
+                  setShowArtists(false)
+                } else if (e.key === 'Escape') {
+                  setShowArtists(false)
+                }
+              }}
               className="input"
               required
+              autoComplete="off"
             />
+            {showArtists && filteredArtists.length > 0 && (
+              <ul className="absolute z-50 w-full mt-1 max-h-40 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg">
+                {filteredArtists.map((artist, i) => (
+                  <li
+                    key={artist}
+                    className={`px-3 py-2 cursor-pointer text-sm ${
+                      i === highlightedIndex
+                        ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    onMouseDown={() => {
+                      setFormData(prev => ({ ...prev, artist }))
+                      setShowArtists(false)
+                    }}
+                  >
+                    {artist}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div>
