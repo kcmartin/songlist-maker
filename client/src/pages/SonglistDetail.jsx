@@ -364,6 +364,12 @@ export default function SonglistDetail() {
 
           <div className="flex flex-wrap gap-2">
             <button
+              onClick={() => navigate(`/songlists/${id}/stage`)}
+              className="btn btn-secondary"
+            >
+              Stage Mode
+            </button>
+            <button
               onClick={handleShare}
               className="btn btn-secondary"
             >

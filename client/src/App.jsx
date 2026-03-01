@@ -6,6 +6,7 @@ import Songs from './pages/Songs'
 import Songlists from './pages/Songlists'
 import SonglistDetail from './pages/SonglistDetail'
 import SharedSonglist from './pages/SharedSonglist'
+import StageMode from './pages/StageMode'
 import Bands from './pages/Bands'
 import Repertoire from './pages/Repertoire'
 import Login from './pages/Login'
@@ -43,11 +44,31 @@ function ProtectedRoutes() {
   )
 }
 
+function ProtectedStageRoute() {
+  const { isAuthenticated, isLoading } = useAuth()
+  const location = useLocation()
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ returnTo: location.pathname }} replace />
+  }
+
+  return <StageMode />
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         <Route path="/share/:token" element={<SharedSonglist />} />
+        <Route path="/songlists/:id/stage" element={<ProtectedStageRoute />} />
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/invite/:token" element={<BandInvite />} />
         <Route path="*" element={<ProtectedRoutes />} />
