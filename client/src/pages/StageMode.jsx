@@ -156,26 +156,26 @@ export default function StageMode() {
                   }`}
                 >
                   <span className={`w-8 text-right font-mono text-lg flex-shrink-0 ${
-                    isCurrent ? 'text-yellow-400' : 'text-white/30'
+                    isCurrent ? 'text-yellow-400' : 'text-white/50'
                   }`}>
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className={`text-xl font-semibold truncate ${
-                      isCurrent ? 'text-white' : 'text-white/90'
+                      isCurrent ? 'text-white' : 'text-white'
                     }`}>
                       {song.title}
                     </p>
                     {display.artist && song.artist && (
                       <p className={`text-base truncate ${
-                        isCurrent ? 'text-white/70' : 'text-white/40'
+                        isCurrent ? 'text-yellow-200' : 'text-white/60'
                       }`}>
                         {song.artist}
                       </p>
                     )}
                     {display.notes && song.notes && (
                       <p className={`text-sm italic truncate mt-0.5 ${
-                        isCurrent ? 'text-white/50' : 'text-white/25'
+                        isCurrent ? 'text-white/70' : 'text-white/40'
                       }`}>
                         {song.notes}
                       </p>
@@ -183,7 +183,7 @@ export default function StageMode() {
                   </div>
                   {display.duration && song.duration && (
                     <span className={`text-base font-mono flex-shrink-0 ${
-                      isCurrent ? 'text-yellow-400/70' : 'text-white/25'
+                      isCurrent ? 'text-yellow-400' : 'text-white/40'
                     }`}>
                       {formatDuration(song.duration)}
                     </span>
