@@ -104,6 +104,36 @@ router.delete('/:id', (req, res) => {
   }
 });
 
+// Get band members
+router.get('/:id/members', requireMember, (req, res) => {
+  try {
+    const members = db.prepare(`
+      SELECT u.id, u.name, u.avatar_url, bm.role, bm.created_at
+      FROM band_members bm
+      JOIN users u ON u.id = bm.user_id
+      WHERE bm.band_id = ?
+      ORDER BY bm.role DESC, u.name
+    `).all(req.params.id);
+    res.json(members);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Leave band (members only, owners cannot leave)
+router.post('/:id/leave', requireMember, (req, res) => {
+  try {
+    if (isOwner(req.params.id, req.user.id)) {
+      return res.status(400).json({ error: 'Band owner cannot leave. Delete the band or transfer ownership first.' });
+    }
+
+    db.prepare('DELETE FROM band_members WHERE band_id = ? AND user_id = ?').run(req.params.id, req.user.id);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Create invite link (any member)
 router.post('/:id/invites', requireMember, (req, res) => {
   try {

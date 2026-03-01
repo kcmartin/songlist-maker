@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useBand } from '../contexts/BandContext'
-import { createBand, updateBand, deleteBand, createBandInvite } from '../api'
+import { createBand, updateBand, deleteBand, createBandInvite, getBandMembers, leaveBand } from '../api'
 import BandForm from '../components/BandForm'
 
 export default function Bands() {
@@ -10,6 +10,8 @@ export default function Bands() {
   const [inviteModal, setInviteModal] = useState(null)
   const [inviteLink, setInviteLink] = useState('')
   const [copied, setCopied] = useState(false)
+  const [membersModal, setMembersModal] = useState(null)
+  const [members, setMembers] = useState([])
 
   const handleCreate = async (data) => {
     try {
@@ -62,7 +64,6 @@ export default function Bands() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // fallback
       const input = document.createElement('input')
       input.value = inviteLink
       document.body.appendChild(input)
@@ -71,6 +72,28 @@ export default function Bands() {
       document.body.removeChild(input)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleShowMembers = async (band) => {
+    try {
+      const data = await getBandMembers(band.id)
+      setMembers(data)
+      setMembersModal(band)
+    } catch (err) {
+      alert('Failed to load members')
+    }
+  }
+
+  const handleLeave = async (bandId) => {
+    if (!confirm('Leave this band? You will need a new invite to rejoin.')) return
+
+    try {
+      await leaveBand(bandId)
+      setMembersModal(null)
+      await refreshBands()
+    } catch (err) {
+      alert(err.message)
     }
   }
 
@@ -137,9 +160,12 @@ export default function Bands() {
                   {band.song_count} {band.song_count === 1 ? 'song' : 'songs'} in repertoire
                 </span>
                 <span className="text-gray-400">|</span>
-                <span>
+                <button
+                  onClick={() => handleShowMembers(band)}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400"
+                >
                   {band.member_count} {band.member_count === 1 ? 'member' : 'members'}
-                </span>
+                </button>
               </div>
             </div>
           ))}
@@ -191,6 +217,55 @@ export default function Bands() {
                 className="btn btn-secondary"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {membersModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="card p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold mb-4">
+              {membersModal.name} — Members
+            </h3>
+            <ul className="space-y-3">
+              {members.map((member) => (
+                <li key={member.id} className="flex items-center gap-3">
+                  {member.avatar_url ? (
+                    <img src={member.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-sm font-medium text-indigo-700 dark:text-indigo-200">
+                      {member.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium truncate block">{member.name}</span>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    member.role === 'owner'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                  }`}>
+                    {member.role}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-between mt-5 pt-4 border-t border-gray-200 dark:border-gray-700">
+              {membersModal.user_role !== 'owner' && (
+                <button
+                  onClick={() => handleLeave(membersModal.id)}
+                  className="text-sm text-red-600 hover:text-red-700 dark:text-red-400"
+                >
+                  Leave band
+                </button>
+              )}
+              <button
+                onClick={() => setMembersModal(null)}
+                className="btn btn-secondary ml-auto"
+              >
+                Close
               </button>
             </div>
           </div>

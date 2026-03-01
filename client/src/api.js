@@ -254,6 +254,24 @@ export async function removeTagFromBandSong(bandId, songId, tagId) {
   return res.json();
 }
 
+// Band Members API
+export async function getBandMembers(bandId) {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/members`);
+  if (!res.ok) throw new Error('Failed to fetch band members');
+  return res.json();
+}
+
+export async function leaveBand(bandId) {
+  const res = await authFetch(`${API_BASE}/bands/${bandId}/leave`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to leave band');
+  }
+  return res.json();
+}
+
 // Band Invites API
 export async function createBandInvite(bandId) {
   const res = await authFetch(`${API_BASE}/bands/${bandId}/invites`, {

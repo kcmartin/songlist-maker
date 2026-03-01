@@ -1,4 +1,10 @@
+import { useLocation } from 'react-router-dom'
+
 export default function Login() {
+  const location = useLocation()
+  const returnTo = location.state?.returnTo || ''
+  const qs = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4">
       <div className="max-w-sm w-full">
@@ -26,7 +32,7 @@ export default function Login() {
 
         <div className="card p-6 space-y-3">
           <a
-            href="/api/auth/google"
+            href={`/api/auth/google${qs}`}
             className="flex items-center justify-center gap-3 w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-200 font-medium"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -51,7 +57,7 @@ export default function Login() {
           </a>
 
           <a
-            href="/api/auth/github"
+            href={`/api/auth/github${qs}`}
             className="flex items-center justify-center gap-3 w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-200 font-medium"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

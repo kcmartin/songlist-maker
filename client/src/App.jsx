@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { BandProvider } from './contexts/BandContext'
 import Layout from './components/Layout'
@@ -13,6 +13,7 @@ import BandInvite from './pages/BandInvite'
 
 function ProtectedRoutes() {
   const { isAuthenticated, isLoading } = useAuth()
+  const location = useLocation()
 
   if (isLoading) {
     return (
@@ -23,7 +24,7 @@ function ProtectedRoutes() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ returnTo: location.pathname }} replace />
   }
 
   return (

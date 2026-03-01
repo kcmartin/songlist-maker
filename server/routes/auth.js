@@ -4,7 +4,10 @@ import passport from '../passport.js';
 const router = Router();
 
 // Google OAuth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google', (req, res, next) => {
+  if (req.query.returnTo) req.session.returnTo = req.query.returnTo;
+  next();
+}, passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login' }),
@@ -16,7 +19,10 @@ router.get('/google/callback',
 );
 
 // GitHub OAuth
-router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+router.get('/github', (req, res, next) => {
+  if (req.query.returnTo) req.session.returnTo = req.query.returnTo;
+  next();
+}, passport.authenticate('github', { scope: ['user:email'] }));
 
 router.get('/github/callback',
   passport.authenticate('github', { failureRedirect: '/login' }),
