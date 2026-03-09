@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getSonglist } from '../api'
 import useWakeLock from '../hooks/useWakeLock'
+import useSwipe from '../hooks/useSwipe'
 
 const formatDuration = (seconds) => {
   if (!seconds) return null
@@ -57,6 +58,37 @@ export default function StageMode() {
   const handleSongTap = (songId) => {
     setCurrentSongId((prev) => (prev === songId ? null : songId))
   }
+
+  const listRef = useRef(null)
+
+  const advanceSong = useCallback(() => {
+    if (!songlist?.songs?.length) return
+    setCurrentSongId((prev) => {
+      const idx = songlist.songs.findIndex((s) => s.id === prev)
+      if (idx === -1) return songlist.songs[0].id
+      if (idx < songlist.songs.length - 1) return songlist.songs[idx + 1].id
+      return prev
+    })
+  }, [songlist])
+
+  const retreatSong = useCallback(() => {
+    if (!songlist?.songs?.length) return
+    setCurrentSongId((prev) => {
+      const idx = songlist.songs.findIndex((s) => s.id === prev)
+      if (idx === -1) return songlist.songs[0].id
+      if (idx > 0) return songlist.songs[idx - 1].id
+      return prev
+    })
+  }, [songlist])
+
+  useSwipe(listRef, { onSwipeLeft: advanceSong, onSwipeRight: retreatSong })
+
+  // Auto-scroll highlighted song into view
+  useEffect(() => {
+    if (!currentSongId || !listRef.current) return
+    const el = listRef.current.querySelector(`[data-song-id="${currentSongId}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [currentSongId])
 
   if (loading) {
     return (
@@ -136,61 +168,85 @@ export default function StageMode() {
       )}
 
       {/* Song list */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" ref={listRef}>
         {songlist.songs?.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-white/40 text-lg">No songs in this list</p>
           </div>
         ) : (
           <div className="py-2">
-            {songlist.songs?.map((song, index) => {
-              const isCurrent = currentSongId === song.id
-              return (
-                <button
-                  key={song.id}
-                  onClick={() => handleSongTap(song.id)}
-                  className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-colors ${
-                    isCurrent
-                      ? 'bg-yellow-400/10 border-l-4 border-yellow-400'
-                      : 'border-l-4 border-transparent'
-                  }`}
-                >
-                  <span className={`w-8 text-right font-mono text-lg flex-shrink-0 ${
-                    isCurrent ? 'text-yellow-400' : 'text-white/50'
-                  }`}>
-                    {index + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-xl font-semibold truncate ${
-                      isCurrent ? 'text-white' : 'text-white'
-                    }`}>
-                      {song.title}
-                    </p>
-                    {display.artist && song.artist && (
-                      <p className={`text-base truncate ${
-                        isCurrent ? 'text-yellow-200' : 'text-white/60'
+            {(() => {
+              const breaks = (() => { try { return JSON.parse(songlist.set_breaks || '[]') } catch { return [] } })()
+              let setNum = 1
+              return songlist.songs?.map((song, index) => {
+                const isCurrent = currentSongId === song.id
+                const isBreak = breaks.includes(song.id)
+                const el = (
+                  <div key={song.id} data-song-id={song.id}>
+                    <button
+                      onClick={() => handleSongTap(song.id)}
+                      className={`w-full text-left px-4 py-3 flex items-start gap-3 transition-colors ${
+                        isCurrent
+                          ? 'bg-yellow-400/10 border-l-4 border-yellow-400'
+                          : 'border-l-4 border-transparent'
+                      }`}
+                    >
+                      <span className={`w-8 text-right font-mono text-lg flex-shrink-0 ${
+                        isCurrent ? 'text-yellow-400' : 'text-white/50'
                       }`}>
-                        {song.artist}
-                      </p>
-                    )}
-                    {display.notes && song.notes && (
-                      <p className={`text-sm italic truncate mt-0.5 ${
-                        isCurrent ? 'text-white/70' : 'text-white/40'
-                      }`}>
-                        {song.notes}
-                      </p>
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xl font-semibold truncate ${
+                          isCurrent ? 'text-white' : 'text-white'
+                        }`}>
+                          {song.title}
+                          {song.key && (
+                            <span className={`ml-2 inline-block px-2 py-0.5 text-sm font-bold rounded ${
+                              isCurrent ? 'bg-yellow-400/20 text-yellow-300' : 'bg-white/10 text-white/60'
+                            }`}>
+                              {song.key}
+                            </span>
+                          )}
+                        </p>
+                        {display.artist && song.artist && (
+                          <p className={`text-base truncate ${
+                            isCurrent ? 'text-yellow-200' : 'text-white/60'
+                          }`}>
+                            {song.artist}
+                          </p>
+                        )}
+                        {display.notes && song.notes && (
+                          <p className={`text-sm italic truncate mt-0.5 ${
+                            isCurrent ? 'text-white/70' : 'text-white/40'
+                          }`}>
+                            {song.notes}
+                          </p>
+                        )}
+                      </div>
+                      {display.duration && song.duration && (
+                        <span className={`text-base font-mono flex-shrink-0 ${
+                          isCurrent ? 'text-yellow-400' : 'text-white/40'
+                        }`}>
+                          {formatDuration(song.duration)}
+                        </span>
+                      )}
+                    </button>
+                    {isBreak && (
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex-1 border-t-2 border-yellow-400" />
+                        <span className="text-sm font-bold text-yellow-400 whitespace-nowrap">
+                          SET {setNum} END
+                        </span>
+                        <div className="flex-1 border-t-2 border-yellow-400" />
+                      </div>
                     )}
                   </div>
-                  {display.duration && song.duration && (
-                    <span className={`text-base font-mono flex-shrink-0 ${
-                      isCurrent ? 'text-yellow-400' : 'text-white/40'
-                    }`}>
-                      {formatDuration(song.duration)}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
+                )
+                if (isBreak) setNum++
+                return el
+              })
+            })()}
           </div>
         )}
       </div>

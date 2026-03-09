@@ -12,6 +12,8 @@ export default function PrintModal({ songlist, onClose }) {
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const breaks = (() => { try { return JSON.parse(songlist.set_breaks || '[]') } catch { return [] } })()
+
   const generateTextContent = () => {
     let content = `${songlist.name}\n`
     if (songlist.date) {
@@ -19,12 +21,16 @@ export default function PrintModal({ songlist, onClose }) {
     }
     content += '\n'
 
+    let setNum = 1
     songlist.songs?.forEach((song, index) => {
       let line = ''
       if (options.showNumbers) {
         line += `${index + 1}. `
       }
       line += song.title
+      if (song.key) {
+        line += ` [${song.key}]`
+      }
       if (options.showArtist) {
         line += ` - ${song.artist}`
       }
@@ -39,6 +45,10 @@ export default function PrintModal({ songlist, onClose }) {
         if (song.recording_url) {
           content += `   Recording: ${song.recording_url}\n`
         }
+      }
+      if (breaks.includes(song.id)) {
+        content += `\n--- End of Set ${setNum} ---\n\n`
+        setNum++
       }
     })
 
@@ -134,6 +144,14 @@ export default function PrintModal({ songlist, onClose }) {
             color: #666;
             margin-top: 4px;
           }
+          .set-break {
+            text-align: center;
+            padding: 12px 0;
+            font-weight: bold;
+            color: #b45309;
+            border-top: 2px solid #f59e0b;
+            margin: 8px 0;
+          }
           @media print {
             body { padding: 0; }
           }
@@ -143,19 +161,29 @@ export default function PrintModal({ songlist, onClose }) {
         <h1>${songlist.name}</h1>
         ${songlist.date ? `<p class="date">${new Date(songlist.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>` : ''}
         <ol class="song-list">
-          ${songlist.songs?.map((song) => `
-            <li class="song-item">
-              <span class="song-title">${song.title}</span>${options.showArtist ? ` <span class="song-artist">- ${song.artist}</span>` : ''}
-              ${options.showNotes && song.notes ? `<div class="song-notes">${song.notes}</div>` : ''}
-              ${options.showLinks && (song.youtube_url || song.recording_url) ? `
-                <div class="song-links">
-                  ${song.youtube_url ? `YouTube: ${song.youtube_url}` : ''}
-                  ${song.youtube_url && song.recording_url ? ' | ' : ''}
-                  ${song.recording_url ? `Recording: ${song.recording_url}` : ''}
-                </div>
-              ` : ''}
-            </li>
-          `).join('') || ''}
+          ${(() => {
+            let setNum = 1
+            return songlist.songs?.map((song) => {
+              const isBreak = breaks.includes(song.id)
+              let html = `
+                <li class="song-item">
+                  <span class="song-title">${song.title}</span>${song.key ? ` <span style="color:#7c3aed;font-size:13px;font-weight:600">[${song.key}]</span>` : ''}${options.showArtist ? ` <span class="song-artist">- ${song.artist}</span>` : ''}
+                  ${options.showNotes && song.notes ? `<div class="song-notes">${song.notes}</div>` : ''}
+                  ${options.showLinks && (song.youtube_url || song.recording_url) ? `
+                    <div class="song-links">
+                      ${song.youtube_url ? `YouTube: ${song.youtube_url}` : ''}
+                      ${song.youtube_url && song.recording_url ? ' | ' : ''}
+                      ${song.recording_url ? `Recording: ${song.recording_url}` : ''}
+                    </div>
+                  ` : ''}
+                </li>`
+              if (isBreak) {
+                html += `<li class="set-break" style="list-style:none">End of Set ${setNum}</li>`
+                setNum++
+              }
+              return html
+            }).join('') || ''
+          })()}
         </ol>
       </body>
       </html>
@@ -225,6 +253,9 @@ export default function PrintModal({ songlist, onClose }) {
               {songlist.songs?.slice(0, 5).map((song, index) => (
                 <li key={song.id} className="py-1">
                   <span className="font-medium">{song.title}</span>
+                  {song.key && (
+                    <span className="text-purple-600 text-xs font-semibold ml-1">[{song.key}]</span>
+                  )}
                   {options.showArtist && (
                     <span className="text-gray-500"> - {song.artist}</span>
                   )}

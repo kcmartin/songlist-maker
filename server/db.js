@@ -66,6 +66,13 @@ if (!hasDuration) {
   db.exec(`ALTER TABLE songs ADD COLUMN duration INTEGER;`);
 }
 
+// Migration: Add key column to songs if it doesn't exist
+const songColumnsForKey = db.prepare("PRAGMA table_info(songs)").all();
+const hasKey = songColumnsForKey.some(col => col.name === 'key');
+if (!hasKey) {
+  db.exec(`ALTER TABLE songs ADD COLUMN key TEXT;`);
+}
+
 // Create tags tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS tags (
@@ -181,6 +188,27 @@ const songlistColumnsForCreatedBy = db.prepare("PRAGMA table_info(songlists)").a
 const songlistsHasCreatedBy = songlistColumnsForCreatedBy.some(col => col.name === 'created_by');
 if (!songlistsHasCreatedBy) {
   db.exec(`ALTER TABLE songlists ADD COLUMN created_by INTEGER REFERENCES users(id);`);
+}
+
+// Create song_parts table for cheat sheets
+db.exec(`
+  CREATE TABLE IF NOT EXISTS song_parts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    song_id INTEGER NOT NULL,
+    instrument TEXT NOT NULL,
+    content TEXT NOT NULL,
+    UNIQUE(song_id, instrument),
+    FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_song_parts_song ON song_parts(song_id);
+`);
+
+// Migration: Add set_breaks column to songlists if it doesn't exist
+const songlistColumnsForBreaks = db.prepare("PRAGMA table_info(songlists)").all();
+const hasSetBreaks = songlistColumnsForBreaks.some(col => col.name === 'set_breaks');
+if (!hasSetBreaks) {
+  db.exec(`ALTER TABLE songlists ADD COLUMN set_breaks TEXT DEFAULT '[]';`);
 }
 
 // Insert default tags if they don't exist

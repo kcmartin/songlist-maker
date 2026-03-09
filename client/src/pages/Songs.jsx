@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getSongs, createSong, updateSong, deleteSong, getTags, addTagToSong, removeTagFromSong } from '../api'
 import SongForm from '../components/SongForm'
+import PartsModal from '../components/PartsModal'
 
 export default function Songs() {
   const [songs, setSongs] = useState([])
@@ -14,6 +15,7 @@ export default function Songs() {
   const [tagMenuOpen, setTagMenuOpen] = useState(null)
   const [sortKey, setSortKey] = useState('artist')
   const [sortDir, setSortDir] = useState('asc')
+  const [partsSong, setPartsSong] = useState(null)
 
   useEffect(() => {
     loadData()
@@ -368,6 +370,12 @@ export default function Songs() {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         <button
+                          onClick={() => setPartsSong(song)}
+                          className="text-purple-600 hover:text-purple-800 dark:text-purple-400"
+                        >
+                          Parts
+                        </button>
+                        <button
                           onClick={() => setEditingSong(song)}
                           className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400"
                         >
@@ -398,6 +406,10 @@ export default function Songs() {
             setEditingSong(null)
           }}
         />
+      )}
+
+      {partsSong && (
+        <PartsModal song={partsSong} onClose={() => setPartsSong(null)} />
       )}
     </div>
   )

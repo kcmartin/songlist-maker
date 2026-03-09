@@ -118,6 +118,55 @@ export async function updateSonglistSongs(id, songIds) {
   return res.json();
 }
 
+export async function updateSonglistBreaks(id, setBreaks) {
+  const res = await authFetch(`${API_BASE}/songlists/${id}/breaks`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ set_breaks: setBreaks }),
+  });
+  if (!res.ok) throw new Error('Failed to update set breaks');
+  return res.json();
+}
+
+export async function duplicateSonglist(id) {
+  const res = await authFetch(`${API_BASE}/songlists/${id}/duplicate`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to duplicate songlist');
+  return res.json();
+}
+
+// Song Parts API
+export async function getSongParts(songId) {
+  const res = await authFetch(`${API_BASE}/songs/${songId}/parts`);
+  if (!res.ok) throw new Error('Failed to fetch song parts');
+  return res.json();
+}
+
+export async function upsertSongPart(songId, instrument, content) {
+  const res = await authFetch(`${API_BASE}/songs/${songId}/parts/${encodeURIComponent(instrument)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error('Failed to save part');
+  return res.json();
+}
+
+export async function deleteSongPart(songId, instrument) {
+  const res = await authFetch(`${API_BASE}/songs/${songId}/parts/${encodeURIComponent(instrument)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete part');
+  return res.json();
+}
+
+export async function getSonglistCheatsheet(songlistId, instrument) {
+  const res = await authFetch(`${API_BASE}/songlists/${songlistId}/cheatsheet?instrument=${encodeURIComponent(instrument)}`);
+  if (!res.ok) throw new Error('Failed to fetch cheat sheet');
+  return res.json();
+}
+
 // Share API
 export async function generateShareLink(id) {
   const res = await authFetch(`${API_BASE}/songlists/${id}/share`, {

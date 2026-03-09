@@ -22,6 +22,8 @@ import {
   getBandSongs,
   updateSonglist,
   updateSonglistSongs,
+  updateSonglistBreaks,
+  duplicateSonglist,
   deleteSonglist,
   generateShareLink,
   removeShareLink,
@@ -29,6 +31,7 @@ import {
 import { useBand } from '../contexts/BandContext'
 import SonglistForm from '../components/SonglistForm'
 import PrintModal from '../components/PrintModal'
+import CheatSheetModal from '../components/CheatSheetModal'
 
 const formatDuration = (seconds) => {
   if (!seconds) return null
@@ -79,7 +82,14 @@ function SortableSong({ song, onRemove, display }) {
       </button>
 
       <div className="flex-1 min-w-0">
-        <p className="font-medium truncate">{song.title}</p>
+        <p className="font-medium truncate">
+          {song.title}
+          {song.key && (
+            <span className="ml-2 inline-block px-1.5 py-0.5 text-xs font-semibold rounded bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+              {song.key}
+            </span>
+          )}
+        </p>
         {display.artist && (
           <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
             {song.artist}
@@ -134,6 +144,7 @@ export default function SonglistDetail() {
   const [showAddSong, setShowAddSong] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [showPrintModal, setShowPrintModal] = useState(false)
+  const [showCheatSheet, setShowCheatSheet] = useState(false)
   const [shareLink, setShareLink] = useState(null)
   const [copyFeedback, setCopyFeedback] = useState(false)
   const [display, setDisplay] = useState(() => {
@@ -156,6 +167,47 @@ export default function SonglistDetail() {
   }
 
   const totalDuration = songlist?.songs?.reduce((sum, s) => sum + (s.duration || 0), 0) || 0
+
+  const setBreaks = songlist ? (() => {
+    try { return JSON.parse(songlist.set_breaks || '[]') } catch { return [] }
+  })() : []
+
+  const toggleBreak = async (songId) => {
+    const newBreaks = setBreaks.includes(songId)
+      ? setBreaks.filter((id) => id !== songId)
+      : [...setBreaks, songId]
+    try {
+      await updateSonglistBreaks(id, newBreaks)
+      setSonglist((prev) => ({ ...prev, set_breaks: JSON.stringify(newBreaks) }))
+    } catch {
+      alert('Failed to update set breaks')
+    }
+  }
+
+  const handleDuplicate = async () => {
+    try {
+      const newList = await duplicateSonglist(id)
+      navigate(`/songlists/${newList.id}`)
+    } catch {
+      alert('Failed to duplicate songlist')
+    }
+  }
+
+  // Compute per-set durations
+  const getSetDurations = () => {
+    if (!songlist?.songs) return []
+    const sets = []
+    let currentSetDuration = 0
+    for (const song of songlist.songs) {
+      currentSetDuration += song.duration || 0
+      if (setBreaks.includes(song.id)) {
+        sets.push(currentSetDuration)
+        currentSetDuration = 0
+      }
+    }
+    sets.push(currentSetDuration)
+    return sets
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -225,10 +277,14 @@ export default function SonglistDetail() {
 
   const handleRemoveSong = async (songId) => {
     const newSongs = songlist.songs.filter((s) => s.id !== songId)
-    setSonglist((prev) => ({ ...prev, songs: newSongs }))
+    const newBreaks = setBreaks.filter((id) => id !== songId)
+    setSonglist((prev) => ({ ...prev, songs: newSongs, set_breaks: JSON.stringify(newBreaks) }))
 
     try {
       await updateSonglistSongs(id, newSongs.map((s) => s.id))
+      if (setBreaks.includes(songId)) {
+        await updateSonglistBreaks(id, newBreaks)
+      }
     } catch (err) {
       loadData()
     }
@@ -382,6 +438,18 @@ export default function SonglistDetail() {
               Print / Export
             </button>
             <button
+              onClick={() => setShowCheatSheet(true)}
+              className="btn btn-secondary"
+            >
+              Cheat Sheet
+            </button>
+            <button
+              onClick={handleDuplicate}
+              className="btn btn-secondary"
+            >
+              Duplicate
+            </button>
+            <button
               onClick={() => setShowEditForm(true)}
               className="btn btn-secondary"
             >
@@ -470,18 +538,54 @@ export default function SonglistDetail() {
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-2">
-              {songlist.songs.map((song, index) => (
-                <div key={song.id} className="flex items-center gap-3">
-                  {display.numbers && (
-                    <span className="w-6 text-center text-gray-400 font-medium">
-                      {index + 1}
-                    </span>
-                  )}
-                  <div className="flex-1">
-                    <SortableSong song={song} onRemove={handleRemoveSong} display={display} />
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                const setDurations = getSetDurations()
+                let setIndex = 0
+                return songlist.songs.map((song, index) => {
+                  const isBreak = setBreaks.includes(song.id)
+                  const isLastSong = index === songlist.songs.length - 1
+                  if (isBreak) setIndex++
+                  const currentSetIndex = isBreak ? setIndex : setIndex
+                  void currentSetIndex // used for break divider below
+                  return (
+                    <div key={song.id}>
+                      <div className="flex items-center gap-3">
+                        {display.numbers && (
+                          <span className="w-6 text-center text-gray-400 font-medium">
+                            {index + 1}
+                          </span>
+                        )}
+                        <div className="flex-1">
+                          <SortableSong song={song} onRemove={handleRemoveSong} display={display} />
+                        </div>
+                      </div>
+                      {!isLastSong && (
+                        <div className="flex items-center justify-center py-1 group/break">
+                          <button
+                            onClick={() => toggleBreak(song.id)}
+                            className={`text-xs px-2 py-0.5 rounded transition-all ${
+                              isBreak
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-900 dark:hover:text-red-300'
+                                : 'opacity-0 group-hover/break:opacity-100 bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-yellow-100 hover:text-yellow-700'
+                            }`}
+                          >
+                            {isBreak ? 'Remove Break' : '+ Set Break'}
+                          </button>
+                        </div>
+                      )}
+                      {isBreak && (
+                        <div className="flex items-center gap-3 py-2">
+                          <div className="flex-1 border-t-2 border-yellow-400 dark:border-yellow-500" />
+                          <span className="text-xs font-semibold text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
+                            End of Set {setIndex} {setDurations[setIndex - 1] > 0 && `(${formatTotalTime(setDurations[setIndex - 1])})`}
+                          </span>
+                          <div className="flex-1 border-t-2 border-yellow-400 dark:border-yellow-500" />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })
+              })()}
             </div>
           </SortableContext>
         </DndContext>
@@ -583,6 +687,10 @@ export default function SonglistDetail() {
 
       {showPrintModal && (
         <PrintModal songlist={songlist} onClose={() => setShowPrintModal(false)} />
+      )}
+
+      {showCheatSheet && (
+        <CheatSheetModal songlist={songlist} onClose={() => setShowCheatSheet(false)} />
       )}
     </div>
   )

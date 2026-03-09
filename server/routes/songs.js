@@ -43,16 +43,16 @@ router.get('/:id', (req, res) => {
 // Create song
 router.post('/', (req, res) => {
   try {
-    const { title, artist, notes, youtube_url, recording_url, lyrics_url, duration } = req.body;
+    const { title, artist, notes, youtube_url, recording_url, lyrics_url, duration, key } = req.body;
 
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
     }
 
     const result = db.prepare(`
-      INSERT INTO songs (title, artist, notes, youtube_url, recording_url, lyrics_url, duration)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, duration || null);
+      INSERT INTO songs (title, artist, notes, youtube_url, recording_url, lyrics_url, duration, key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, duration || null, key || null);
 
     const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ ...song, tags: [] });
@@ -64,7 +64,7 @@ router.post('/', (req, res) => {
 // Update song
 router.put('/:id', (req, res) => {
   try {
-    const { title, artist, notes, youtube_url, recording_url, lyrics_url, duration } = req.body;
+    const { title, artist, notes, youtube_url, recording_url, lyrics_url, duration, key } = req.body;
 
     if (!title || !artist) {
       return res.status(400).json({ error: 'Title and artist are required' });
@@ -72,9 +72,9 @@ router.put('/:id', (req, res) => {
 
     const result = db.prepare(`
       UPDATE songs
-      SET title = ?, artist = ?, notes = ?, youtube_url = ?, recording_url = ?, lyrics_url = ?, duration = ?
+      SET title = ?, artist = ?, notes = ?, youtube_url = ?, recording_url = ?, lyrics_url = ?, duration = ?, key = ?
       WHERE id = ?
-    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, duration || null, req.params.id);
+    `).run(title, artist, notes || null, youtube_url || null, recording_url || null, lyrics_url || null, duration || null, key || null, req.params.id);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Song not found' });
@@ -142,6 +142,56 @@ router.delete('/:id/tags/:tagId', (req, res) => {
     db.prepare('DELETE FROM song_tags WHERE song_id = ? AND tag_id = ?').run(songId, tagId);
 
     res.json({ ...song, tags: getSongTags(songId) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all parts for a song
+router.get('/:id/parts', (req, res) => {
+  try {
+    const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(req.params.id);
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+    const parts = db.prepare('SELECT * FROM song_parts WHERE song_id = ? ORDER BY instrument').all(req.params.id);
+    res.json(parts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upsert a part for a song
+router.put('/:id/parts/:instrument', (req, res) => {
+  try {
+    const { content } = req.body;
+    const { id: songId, instrument } = req.params;
+
+    const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(songId);
+    if (!song) {
+      return res.status(404).json({ error: 'Song not found' });
+    }
+
+    db.prepare(`
+      INSERT INTO song_parts (song_id, instrument, content)
+      VALUES (?, ?, ?)
+      ON CONFLICT(song_id, instrument) DO UPDATE SET content = excluded.content
+    `).run(songId, instrument, content || '');
+
+    const parts = db.prepare('SELECT * FROM song_parts WHERE song_id = ? ORDER BY instrument').all(songId);
+    res.json(parts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a part for a song
+router.delete('/:id/parts/:instrument', (req, res) => {
+  try {
+    const { id: songId, instrument } = req.params;
+    db.prepare('DELETE FROM song_parts WHERE song_id = ? AND instrument = ?').run(songId, instrument);
+    const parts = db.prepare('SELECT * FROM song_parts WHERE song_id = ? ORDER BY instrument').all(songId);
+    res.json(parts);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

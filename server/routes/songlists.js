@@ -151,7 +151,7 @@ router.get('/:id', (req, res) => {
 // Create songlist
 router.post('/', (req, res) => {
   try {
-    const { name, type, date, notes, band_id } = req.body;
+    const { name, type, date, notes, band_id, set_breaks } = req.body;
 
     if (!name || !type) {
       return res.status(400).json({ error: 'Name and type are required' });
@@ -170,9 +170,9 @@ router.post('/', (req, res) => {
     }
 
     const result = db.prepare(`
-      INSERT INTO songlists (name, type, date, notes, band_id, created_by)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(name, type, date || null, notes || null, band_id || null, req.user.id);
+      INSERT INTO songlists (name, type, date, notes, band_id, created_by, set_breaks)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(name, type, date || null, notes || null, band_id || null, req.user.id, set_breaks ? JSON.stringify(set_breaks) : '[]');
 
     const songlist = db.prepare(`
       SELECT s.*, b.name as band_name
@@ -189,7 +189,7 @@ router.post('/', (req, res) => {
 // Update songlist
 router.put('/:id', (req, res) => {
   try {
-    const { name, type, date, notes, band_id } = req.body;
+    const { name, type, date, notes, band_id, set_breaks } = req.body;
 
     if (!name || !type) {
       return res.status(400).json({ error: 'Name and type are required' });
@@ -207,11 +207,16 @@ router.put('/:id', (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const result = db.prepare(`
-      UPDATE songlists
-      SET name = ?, type = ?, date = ?, notes = ?, band_id = ?
-      WHERE id = ?
-    `).run(name, type, date || null, notes || null, band_id ?? null, req.params.id);
+    const updates = ['name = ?', 'type = ?', 'date = ?', 'notes = ?', 'band_id = ?'];
+    const params = [name, type, date || null, notes || null, band_id ?? null];
+
+    if (set_breaks !== undefined) {
+      updates.push('set_breaks = ?');
+      params.push(JSON.stringify(set_breaks));
+    }
+
+    params.push(req.params.id);
+    db.prepare(`UPDATE songlists SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
     const updated = db.prepare(`
       SELECT s.*, b.name as band_name
@@ -281,6 +286,118 @@ router.put('/:id/songs', (req, res) => {
     `).all(songlistId);
 
     res.json({ ...songlist, songs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get cheat sheet for a songlist
+router.get('/:id/cheatsheet', (req, res) => {
+  try {
+    const { instrument } = req.query;
+    if (!instrument) {
+      return res.status(400).json({ error: 'instrument query parameter is required' });
+    }
+
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const songs = db.prepare(`
+      SELECT s.*, si.position, sp.content as part_content
+      FROM songs s
+      JOIN songlist_items si ON s.id = si.song_id
+      LEFT JOIN song_parts sp ON sp.song_id = s.id AND sp.instrument = ?
+      WHERE si.songlist_id = ?
+      ORDER BY si.position
+    `).all(instrument, req.params.id);
+
+    res.json({ songlist_name: songlist.name, instrument, songs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update set breaks only
+router.patch('/:id/breaks', (req, res) => {
+  try {
+    const { set_breaks } = req.body;
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    db.prepare('UPDATE songlists SET set_breaks = ? WHERE id = ?').run(JSON.stringify(set_breaks || []), req.params.id);
+
+    const updated = db.prepare(`
+      SELECT s.*, b.name as band_name
+      FROM songlists s
+      LEFT JOIN bands b ON s.band_id = b.id
+      WHERE s.id = ?
+    `).get(req.params.id);
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Duplicate songlist
+router.post('/:id/duplicate', (req, res) => {
+  try {
+    const songlist = db.prepare('SELECT * FROM songlists WHERE id = ?').get(req.params.id);
+    if (!songlist) {
+      return res.status(404).json({ error: 'Songlist not found' });
+    }
+    if (!canAccessSonglist(songlist, req.user.id)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO songlists (name, type, date, notes, band_id, created_by, set_breaks)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      songlist.name + ' (Copy)',
+      songlist.type,
+      songlist.date,
+      songlist.notes,
+      songlist.band_id,
+      req.user.id,
+      songlist.set_breaks || '[]'
+    );
+
+    const newId = result.lastInsertRowid;
+
+    // Copy songlist items
+    const items = db.prepare('SELECT * FROM songlist_items WHERE songlist_id = ? ORDER BY position').all(songlist.id);
+    const insertItem = db.prepare('INSERT INTO songlist_items (songlist_id, song_id, position) VALUES (?, ?, ?)');
+    for (const item of items) {
+      insertItem.run(newId, item.song_id, item.position);
+    }
+
+    // Return new songlist with songs
+    const newSonglist = db.prepare(`
+      SELECT s.*, b.name as band_name
+      FROM songlists s
+      LEFT JOIN bands b ON s.band_id = b.id
+      WHERE s.id = ?
+    `).get(newId);
+
+    const songs = db.prepare(`
+      SELECT s.*, si.position
+      FROM songs s
+      JOIN songlist_items si ON s.id = si.song_id
+      WHERE si.songlist_id = ?
+      ORDER BY si.position
+    `).all(newId);
+
+    res.status(201).json({ ...newSonglist, songs });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

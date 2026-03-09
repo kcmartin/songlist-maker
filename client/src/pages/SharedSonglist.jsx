@@ -107,40 +107,62 @@ export default function SharedSonglist() {
           </div>
         ) : (
           <div className="space-y-2">
-            {songlist.songs?.map((song, index) => (
-              <div
-                key={song.id}
-                className="flex items-center gap-3"
-              >
-                <span className="w-6 text-center text-gray-400 font-medium">
-                  {index + 1}
-                </span>
-                <div className="flex-1 card p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                        {song.title}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                        {song.artist}
-                      </p>
+            {(() => {
+              const breaks = (() => { try { return JSON.parse(songlist.set_breaks || '[]') } catch { return [] } })()
+              let setNum = 1
+              return songlist.songs?.map((song, index) => {
+                const isBreak = breaks.includes(song.id)
+                const el = (
+                  <div key={song.id}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 text-center text-gray-400 font-medium">
+                        {index + 1}
+                      </span>
+                      <div className="flex-1 card p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {song.title}
+                              {song.key && (
+                                <span className="ml-2 inline-block px-1.5 py-0.5 text-xs font-semibold rounded bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                                  {song.key}
+                                </span>
+                              )}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                              {song.artist}
+                            </p>
+                          </div>
+                          {song.youtube_url && (
+                            <a
+                              href={song.youtube_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-red-600 hover:text-red-700 ml-2"
+                            >
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    {song.youtube_url && (
-                      <a
-                        href={song.youtube_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-600 hover:text-red-700 ml-2"
-                      >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                        </svg>
-                      </a>
+                    {isBreak && (
+                      <div className="flex items-center gap-3 py-2">
+                        <div className="flex-1 border-t-2 border-yellow-400" />
+                        <span className="text-xs font-semibold text-yellow-600 dark:text-yellow-400">
+                          End of Set {setNum}
+                        </span>
+                        <div className="flex-1 border-t-2 border-yellow-400" />
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
-            ))}
+                )
+                if (isBreak) setNum++
+                return el
+              })
+            })()}
           </div>
         )}
 

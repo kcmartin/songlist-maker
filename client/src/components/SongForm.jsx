@@ -10,7 +10,10 @@ export default function SongForm({ song, onSubmit, onCancel }) {
     recording_url: '',
     lyrics_url: '',
     duration: '',
+    key: '',
   })
+
+  const COMMON_KEYS = ['C', 'Cm', 'C#', 'C#m', 'Db', 'D', 'Dm', 'Eb', 'Ebm', 'E', 'Em', 'F', 'Fm', 'F#', 'F#m', 'Gb', 'G', 'Gm', 'Ab', 'Abm', 'A', 'Am', 'Bb', 'Bbm', 'B', 'Bm']
 
   const [artists, setArtists] = useState([])
   const [showArtists, setShowArtists] = useState(false)
@@ -39,6 +42,7 @@ export default function SongForm({ song, onSubmit, onCancel }) {
         recording_url: song.recording_url || '',
         lyrics_url: song.lyrics_url || '',
         duration: song.duration ? formatDuration(song.duration) : '',
+        key: song.key || '',
       })
     }
   }, [song])
@@ -212,18 +216,37 @@ export default function SongForm({ song, onSubmit, onCancel }) {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Duration
-            </label>
-            <input
-              type="text"
-              name="duration"
-              value={formData.duration}
-              onChange={handleChange}
-              className="input"
-              placeholder="3:30"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Duration
+              </label>
+              <input
+                type="text"
+                name="duration"
+                value={formData.duration}
+                onChange={handleChange}
+                className="input"
+                placeholder="3:30"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Key
+              </label>
+              <input
+                type="text"
+                name="key"
+                value={formData.key}
+                onChange={handleChange}
+                className="input"
+                list="key-options"
+                placeholder="e.g. Am, G"
+              />
+              <datalist id="key-options">
+                {COMMON_KEYS.map(k => <option key={k} value={k} />)}
+              </datalist>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">
