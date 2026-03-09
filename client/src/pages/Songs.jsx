@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getSongs, createSong, updateSong, deleteSong, getTags, addTagToSong, removeTagFromSong } from '../api'
 import SongForm from '../components/SongForm'
 import PartsModal from '../components/PartsModal'
+import ImportModal from '../components/ImportModal'
 
 export default function Songs() {
   const [songs, setSongs] = useState([])
@@ -16,6 +17,7 @@ export default function Songs() {
   const [sortKey, setSortKey] = useState('artist')
   const [sortDir, setSortDir] = useState('asc')
   const [partsSong, setPartsSong] = useState(null)
+  const [showImportModal, setShowImportModal] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -152,9 +154,14 @@ export default function Songs() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Songs</h1>
-        <button onClick={() => setShowForm(true)} className="btn btn-primary">
-          + Add Song
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImportModal(true)} className="btn">
+            Import CSV
+          </button>
+          <button onClick={() => setShowForm(true)} className="btn btn-primary">
+            + Add Song
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -410,6 +417,13 @@ export default function Songs() {
 
       {partsSong && (
         <PartsModal song={partsSong} onClose={() => setPartsSong(null)} />
+      )}
+
+      {showImportModal && (
+        <ImportModal
+          onClose={() => setShowImportModal(false)}
+          onComplete={loadSongs}
+        />
       )}
     </div>
   )

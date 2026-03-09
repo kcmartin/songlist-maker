@@ -11,6 +11,15 @@ const formatDuration = (seconds) => {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+const formatTotalTime = (seconds) => {
+  if (!seconds) return null
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  if (h > 0) return `${h}h ${m}m`
+  return `${m}m ${String(s).padStart(2, '0')}s`
+}
+
 export default function StageMode() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -178,7 +187,9 @@ export default function StageMode() {
             {(() => {
               const breaks = (() => { try { return JSON.parse(songlist.set_breaks || '[]') } catch { return [] } })()
               let setNum = 1
+              let setDuration = 0
               return songlist.songs?.map((song, index) => {
+                setDuration += song.duration || 0
                 const isCurrent = currentSongId === song.id
                 const isBreak = breaks.includes(song.id)
                 const el = (
@@ -236,14 +247,17 @@ export default function StageMode() {
                       <div className="flex items-center gap-3 px-4 py-3">
                         <div className="flex-1 border-t-2 border-yellow-400" />
                         <span className="text-sm font-bold text-yellow-400 whitespace-nowrap">
-                          SET {setNum} END
+                          SET {setNum} END{setDuration > 0 ? ` (${formatTotalTime(setDuration)})` : ''}
                         </span>
                         <div className="flex-1 border-t-2 border-yellow-400" />
                       </div>
                     )}
                   </div>
                 )
-                if (isBreak) setNum++
+                if (isBreak) {
+                  setNum++
+                  setDuration = 0
+                }
                 return el
               })
             })()}
