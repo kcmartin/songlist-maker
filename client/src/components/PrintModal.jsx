@@ -6,6 +6,7 @@ export default function PrintModal({ songlist, onClose }) {
     showArtist: true,
     showNotes: false,
     showLinks: false,
+    showPatch: true,
   })
 
   const handleToggle = (key) => {
@@ -30,6 +31,9 @@ export default function PrintModal({ songlist, onClose }) {
       line += song.title
       if (song.key) {
         line += ` [${song.key}]`
+      }
+      if (options.showPatch && song.patch_number) {
+        line += ` [P${song.patch_number}]`
       }
       if (options.showArtist) {
         line += ` - ${song.artist}`
@@ -167,7 +171,7 @@ export default function PrintModal({ songlist, onClose }) {
               const isBreak = breaks.includes(song.id)
               let html = `
                 <li class="song-item">
-                  <span class="song-title">${song.title}</span>${song.key ? ` <span style="color:#7c3aed;font-size:13px;font-weight:600">[${song.key}]</span>` : ''}${options.showArtist ? ` <span class="song-artist">- ${song.artist}</span>` : ''}
+                  <span class="song-title">${song.title}</span>${song.key ? ` <span style="color:#7c3aed;font-size:13px;font-weight:600">[${song.key}]</span>` : ''}${options.showPatch && song.patch_number ? ` <span style="color:#4f46e5;font-size:12px;font-weight:600;background:#eef2ff;padding:1px 5px;border-radius:3px">P${song.patch_number}</span>` : ''}${options.showArtist ? ` <span class="song-artist">- ${song.artist}</span>` : ''}
                   ${options.showNotes && song.notes ? `<div class="song-notes">${song.notes}</div>` : ''}
                   ${options.showLinks && (song.youtube_url || song.recording_url) ? `
                     <div class="song-links">
@@ -232,6 +236,16 @@ export default function PrintModal({ songlist, onClose }) {
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
+              checked={options.showPatch}
+              onChange={() => handleToggle('showPatch')}
+              className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span>Show patch #</span>
+          </label>
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
               checked={options.showLinks}
               onChange={() => handleToggle('showLinks')}
               className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -255,6 +269,9 @@ export default function PrintModal({ songlist, onClose }) {
                   <span className="font-medium">{song.title}</span>
                   {song.key && (
                     <span className="text-purple-600 text-xs font-semibold ml-1">[{song.key}]</span>
+                  )}
+                  {options.showPatch && song.patch_number && (
+                    <span className="text-indigo-600 text-xs font-semibold ml-1 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-400 px-1 rounded">P{song.patch_number}</span>
                   )}
                   {options.showArtist && (
                     <span className="text-gray-500"> - {song.artist}</span>
