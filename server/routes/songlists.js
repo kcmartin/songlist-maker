@@ -25,7 +25,8 @@ router.get('/share/:token', (req, res) => {
       songs = db.prepare(`
         SELECT s.*, si.position,
           COALESCE(bs.notes, s.notes) as notes,
-          COALESCE(bs.duration, s.duration) as duration
+          COALESCE(bs.duration, s.duration) as duration,
+          bs.patch_number
         FROM songs s
         JOIN songlist_items si ON s.id = si.song_id
         LEFT JOIN band_songs bs ON bs.song_id = s.id AND bs.band_id = ?
@@ -125,7 +126,8 @@ router.get('/:id', (req, res) => {
       songs = db.prepare(`
         SELECT s.*, si.position,
           COALESCE(bs.notes, s.notes) as notes,
-          COALESCE(bs.duration, s.duration) as duration
+          COALESCE(bs.duration, s.duration) as duration,
+          bs.patch_number
         FROM songs s
         JOIN songlist_items si ON s.id = si.song_id
         LEFT JOIN band_songs bs ON bs.song_id = s.id AND bs.band_id = ?

@@ -38,7 +38,7 @@ export default function Repertoire() {
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingSong, setEditingSong] = useState(null)
-  const [editForm, setEditForm] = useState({ notes: '', duration: '' })
+  const [editForm, setEditForm] = useState({ notes: '', duration: '', patch_number: '' })
   const [search, setSearch] = useState('')
   const [filterTag, setFilterTag] = useState(null)
 
@@ -94,6 +94,7 @@ export default function Repertoire() {
     setEditForm({
       notes: song.band_notes || '',
       duration: song.band_duration ? formatDuration(song.band_duration) : '',
+      patch_number: song.patch_number || '',
     })
   }
 
@@ -102,6 +103,7 @@ export default function Repertoire() {
       await updateBandSong(selectedBandId, songId, {
         notes: editForm.notes || null,
         duration: parseDuration(editForm.duration),
+        patch_number: editForm.patch_number || null,
       })
       setEditingSong(null)
       await loadData()
@@ -251,17 +253,31 @@ export default function Repertoire() {
                       placeholder={song.global_notes || 'No global notes'}
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">
-                      Band-specific duration (m:ss)
-                    </label>
-                    <input
-                      type="text"
-                      value={editForm.duration}
-                      onChange={(e) => setEditForm((f) => ({ ...f, duration: e.target.value }))}
-                      className="input text-sm w-32"
-                      placeholder={song.global_duration ? formatDuration(song.global_duration) : '0:00'}
-                    />
+                  <div className="flex gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Band-specific duration (m:ss)
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.duration}
+                        onChange={(e) => setEditForm((f) => ({ ...f, duration: e.target.value }))}
+                        className="input text-sm w-32"
+                        placeholder={song.global_duration ? formatDuration(song.global_duration) : '0:00'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Patch #
+                      </label>
+                      <input
+                        type="text"
+                        value={editForm.patch_number}
+                        onChange={(e) => setEditForm((f) => ({ ...f, patch_number: e.target.value }))}
+                        className="input text-sm w-24"
+                        placeholder="e.g. 42"
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button
@@ -286,6 +302,11 @@ export default function Repertoire() {
                       {song.duration && (
                         <span className="text-sm text-gray-400 shrink-0">
                           {formatDuration(song.duration)}
+                        </span>
+                      )}
+                      {song.patch_number && (
+                        <span className="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 px-1.5 py-0.5 rounded font-mono shrink-0">
+                          P{song.patch_number}
                         </span>
                       )}
                     </div>

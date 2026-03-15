@@ -213,7 +213,8 @@ router.get('/:id/songs', requireMember, (req, res) => {
         s.notes as global_notes,
         s.duration as global_duration,
         bs.notes as band_notes,
-        bs.duration as band_duration
+        bs.duration as band_duration,
+        bs.patch_number
       FROM band_songs bs
       JOIN songs s ON s.id = bs.song_id
       WHERE bs.band_id = ?
@@ -241,7 +242,7 @@ router.get('/:id/songs', requireMember, (req, res) => {
 // Add song to band repertoire
 router.post('/:id/songs', requireMember, (req, res) => {
   try {
-    const { songId, notes, duration } = req.body;
+    const { songId, notes, duration, patch_number } = req.body;
     if (!songId) {
       return res.status(400).json({ error: 'songId is required' });
     }
@@ -257,9 +258,9 @@ router.post('/:id/songs', requireMember, (req, res) => {
     }
 
     db.prepare(`
-      INSERT INTO band_songs (band_id, song_id, notes, duration)
-      VALUES (?, ?, ?, ?)
-    `).run(req.params.id, songId, notes || null, duration || null);
+      INSERT INTO band_songs (band_id, song_id, notes, duration, patch_number)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(req.params.id, songId, notes || null, duration || null, patch_number || null);
 
     res.status(201).json({ success: true });
   } catch (error) {
@@ -273,12 +274,12 @@ router.post('/:id/songs', requireMember, (req, res) => {
 // Update band-specific overrides for a song
 router.put('/:id/songs/:songId', requireMember, (req, res) => {
   try {
-    const { notes, duration } = req.body;
+    const { notes, duration, patch_number } = req.body;
 
     const result = db.prepare(`
-      UPDATE band_songs SET notes = ?, duration = ?
+      UPDATE band_songs SET notes = ?, duration = ?, patch_number = ?
       WHERE band_id = ? AND song_id = ?
-    `).run(notes ?? null, duration ?? null, req.params.id, req.params.songId);
+    `).run(notes ?? null, duration ?? null, patch_number ?? null, req.params.id, req.params.songId);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Song not found in band repertoire' });

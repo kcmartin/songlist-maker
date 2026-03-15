@@ -36,6 +36,7 @@ export default function StageMode() {
       artist: true,
       notes: false,
       duration: true,
+      patch: true,
     }
   })
 
@@ -160,6 +161,7 @@ export default function StageMode() {
             { key: 'artist', label: 'Artist' },
             { key: 'notes', label: 'Notes' },
             { key: 'duration', label: 'Duration' },
+            { key: 'patch', label: 'Patch #' },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -235,13 +237,22 @@ export default function StageMode() {
                           </p>
                         )}
                       </div>
-                      {display.duration && song.duration && (
-                        <span className={`text-base font-mono flex-shrink-0 ${
-                          isCurrent ? 'text-yellow-400' : 'text-white/40'
-                        }`}>
-                          {formatDuration(song.duration)}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                        {display.duration && song.duration && (
+                          <span className={`text-base font-mono ${
+                            isCurrent ? 'text-yellow-400' : 'text-white/40'
+                          }`}>
+                            {formatDuration(song.duration)}
+                          </span>
+                        )}
+                        {display.patch && song.patch_number && (
+                          <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
+                            isCurrent ? 'bg-yellow-400/20 text-yellow-300' : 'bg-white/10 text-white/50'
+                          }`}>
+                            P{song.patch_number}
+                          </span>
+                        )}
+                      </div>
                     </button>
                     {isBreak && (
                       <div className="flex items-center gap-3 px-4 py-3">

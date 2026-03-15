@@ -211,6 +211,13 @@ if (!hasSetBreaks) {
   db.exec(`ALTER TABLE songlists ADD COLUMN set_breaks TEXT DEFAULT '[]';`);
 }
 
+// Migration: Add patch_number column to band_songs if it doesn't exist
+const bandSongColumns = db.prepare("PRAGMA table_info(band_songs)").all();
+const hasPatchNumber = bandSongColumns.some(col => col.name === 'patch_number');
+if (!hasPatchNumber) {
+  db.exec(`ALTER TABLE band_songs ADD COLUMN patch_number TEXT;`);
+}
+
 // Insert default tags if they don't exist
 const defaultTags = [
   { name: 'needs work', color: '#ef4444' },
