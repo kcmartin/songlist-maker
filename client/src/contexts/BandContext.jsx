@@ -5,6 +5,7 @@ const BandContext = createContext()
 
 export function BandProvider({ children }) {
   const [bands, setBands] = useState([])
+  const [bandsLoaded, setBandsLoaded] = useState(false)
   const [selectedBandId, setSelectedBandId] = useState(() => {
     const saved = localStorage.getItem('selectedBandId')
     return saved ? Number(saved) : null
@@ -14,6 +15,7 @@ export function BandProvider({ children }) {
     try {
       const data = await getBands()
       setBands(data)
+      setBandsLoaded(true)
     } catch (err) {
       console.error('Failed to load bands', err)
     }
@@ -31,13 +33,13 @@ export function BandProvider({ children }) {
     }
   }, [selectedBandId])
 
-  // If the selected band was deleted, clear selection
+  // If the selected band was deleted, clear selection (only after bands have loaded)
   const selectedBand = bands.find((b) => b.id === selectedBandId) || null
   useEffect(() => {
-    if (selectedBandId && bands.length > 0 && !selectedBand) {
+    if (bandsLoaded && selectedBandId && bands.length > 0 && !selectedBand) {
       setSelectedBandId(null)
     }
-  }, [selectedBandId, bands, selectedBand])
+  }, [bandsLoaded, selectedBandId, bands, selectedBand])
 
   return (
     <BandContext.Provider
