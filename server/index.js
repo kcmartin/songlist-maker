@@ -15,6 +15,11 @@ import backupRouter from './routes/backup.js';
 import bandsRouter from './routes/bands.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+if (!process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET environment variable is required');
+}
+
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
@@ -29,7 +34,7 @@ app.use(express.json());
 // Session middleware
 app.use(session({
   store: new SQLiteStore(),
-  secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
