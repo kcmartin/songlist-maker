@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DB_PATH="/home/sprite/songlist-maker/server/songlist.db"
-BACKUP_REPO="/home/sprite/songlist-backups"
+DB_PATH="${DATABASE_PATH:-/home/sprite/songlist-maker/server/songlist.db}"
+BACKUP_REPO="${BACKUP_REPO_PATH:-/home/sprite/songlist-backups}"
 DUMP_FILE="$BACKUP_REPO/songlist.sql"
 
 # Ensure the database exists

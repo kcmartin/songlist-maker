@@ -1,0 +1,30 @@
+# fly.toml app configuration file generated for songlist-maker on 2026-05-17T19:13:15Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'songlist-maker'
+primary_region = 'sjc'
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  DATABASE_PATH = "/data/songlist.db"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[mounts]
+  source = "songlist_data"
+  destination = "/data"
+
+[[vm]]
+    cpu_kind = "shared"
+    cpus = 1
+    memory = "512mb"

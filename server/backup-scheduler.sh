@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BACKUP_SCRIPT="/home/sprite/songlist-maker/server/backup-db.sh"
+BACKUP_SCRIPT="$(dirname "$0")/backup-db.sh"
 INTERVAL=$((12 * 60 * 60))  # 12 hours in seconds
 
 echo "Backup scheduler started. Running every 12 hours."
